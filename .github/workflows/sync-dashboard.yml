@@ -1,0 +1,93 @@
+name: Sync Dashboard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # The source refresh starts at :05 and normally takes under 15 minutes.
+    - cron: '35 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+env:
+  SOURCE_DASHBOARD_URL: https://michaelzhang-ai.github.io/sglang-ci/
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # The repo was initially enabled with "Deploy from a branch". Prefer
+      # workflow mode so a later main-branch build cannot replace this artifact.
+      # A collaborator may not have the settings permission GitHub requires;
+      # the push-trigger delay below keeps deployment ordering correct even
+      # when this best-effort migration is refused.
+      - name: Select workflow Pages publishing
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
+            -f build_type=workflow
+
+      - name: Wait for legacy branch deployment
+        if: github.event_name == 'push'
+        run: sleep 45
+
+      # site_mirror.py is executable code fetched from another site. Verify it
+      # against the SHA-256 in that site's manifest before running it.
+      - name: Download verified mirror client
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 4 --retry-all-errors \
+            "${SOURCE_DASHBOARD_URL}site-manifest.json?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --output /tmp/site-manifest.json
+          curl --fail --silent --show-error --location \
+            --retry 4 --retry-all-errors \
+            "${SOURCE_DASHBOARD_URL}mirror/site_mirror.py?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --output /tmp/site_mirror.py
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("/tmp/site-manifest.json").read_bytes())
+          expected = next(
+              item for item in manifest["files"]
+              if item["path"] == "mirror/site_mirror.py"
+          )
+          body = Path("/tmp/site_mirror.py").read_bytes()
+          assert len(body) == expected["size"], "mirror client size mismatch"
+          assert hashlib.sha256(body).hexdigest() == expected["sha256"], (
+              "mirror client SHA-256 mismatch"
+          )
+          PY
+
+      - name: Mirror source site
+        run: |
+          python3 /tmp/site_mirror.py sync \
+            --source-url "$SOURCE_DASHBOARD_URL" \
+            --output _site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
