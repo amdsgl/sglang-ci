@@ -3,9 +3,15 @@ name: Sync Dashboard
 on:
   push:
     branches: [main]
+  # GitHub queues scheduled runs on a best-effort basis and drops them outright
+  # under load: the first two hourly ticks after this workflow was added never
+  # fired, and the source dashboard's own hourly schedule arrives anywhere from
+  # one to fifty-five minutes late. So poll rather than aiming for a fixed
+  # window after the source refresh, and keep the interval short enough that a
+  # dropped tick costs minutes instead of hours. A poll with nothing to do
+  # fetches one 44 KB manifest and stops.
   schedule:
-    # The source refresh starts at :05 and normally takes under 15 minutes.
-    - cron: '35 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -14,32 +20,94 @@ permissions:
   id-token: write
 
 concurrency:
+  # Never cancel a deployment already in flight. A half-applied Pages
+  # deployment is worse than a late one, and the next poll is minutes away.
   group: github-pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   SOURCE_DASHBOARD_URL: https://michaelzhang-ai.github.io/sglang-ci/
 
 jobs:
+  # Deciding whether there is anything to publish is separated from publishing
+  # it so that a poll finding no change leaves no deployment record and never
+  # touches the github-pages environment.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
+    steps:
+      - name: Compare source and mirror manifests
+        id: compare
+        run: |
+          set -euo pipefail
+
+          owner="${GITHUB_REPOSITORY%%/*}"
+          name="${GITHUB_REPOSITORY#*/}"
+          host="$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]').github.io"
+          if [ "$name" = "${host}" ]; then
+            mirror_url="https://${host}/"
+          else
+            mirror_url="https://${host}/${name}/"
+          fi
+          echo "Source: ${SOURCE_DASHBOARD_URL}"
+          echo "Mirror: ${mirror_url}"
+
+          bust="?poll=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          curl --fail --silent --show-error --location \
+            --retry 4 --retry-all-errors \
+            "${SOURCE_DASHBOARD_URL}site-manifest.json${bust}" \
+            --output /tmp/source-manifest.json
+
+          # A mirror that has never deployed, or one whose manifest predates
+          # this scheme, answers 404. Treat anything unreadable as "changed"
+          # so the sync below is what decides, not this comparison.
+          if curl --fail --silent --show-error --location \
+               "${mirror_url}site-manifest.json${bust}" \
+               --output /tmp/mirror-manifest.json; then
+            if cmp --quiet /tmp/source-manifest.json /tmp/mirror-manifest.json; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::Mirror already matches the source manifest — nothing to deploy"
+              exit 0
+            fi
+            echo "Mirror manifest differs from the source"
+          else
+            echo "Mirror manifest is not published yet"
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
   deploy:
+    needs: check
+    if: needs.check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # The repo was initially enabled with "Deploy from a branch". Prefer
-      # workflow mode so a later main-branch build cannot replace this artifact.
-      # A collaborator may not have the settings permission GitHub requires;
-      # the push-trigger delay below keeps deployment ordering correct even
-      # when this best-effort migration is refused.
-      - name: Select workflow Pages publishing
-        continue-on-error: true
+      # This repo was enabled with "Deploy from a branch", so a push to main
+      # also starts GitHub's own legacy build, which would replace the artifact
+      # deployed below. Prefer workflow mode, which removes the race entirely.
+      # GitHub requires admin or the "manage Pages settings" permission for
+      # this, which a collaborator token does not have, so treat a refusal as
+      # expected and fall back to the ordering delay below.
+      - name: Prefer workflow Pages publishing
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
-            -f build_type=workflow
+          set -uo pipefail
+          current=$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.build_type' 2>/dev/null || echo unknown)
+          if [ "$current" = "workflow" ]; then
+            echo "Pages already publishes from a workflow"
+            exit 0
+          fi
+          if gh api --method PUT "repos/${GITHUB_REPOSITORY}/pages" \
+               -f build_type=workflow >/dev/null 2>&1; then
+            echo "Switched Pages to workflow publishing"
+          else
+            echo "::notice::Cannot switch Pages to workflow publishing (needs admin); relying on the ordering delay"
+          fi
 
       - name: Wait for legacy branch deployment
         if: github.event_name == 'push'
@@ -49,13 +117,15 @@ jobs:
       # against the SHA-256 in that site's manifest before running it.
       - name: Download verified mirror client
         run: |
+          set -euo pipefail
+          bust="?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           curl --fail --silent --show-error --location \
             --retry 4 --retry-all-errors \
-            "${SOURCE_DASHBOARD_URL}site-manifest.json?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "${SOURCE_DASHBOARD_URL}site-manifest.json${bust}" \
             --output /tmp/site-manifest.json
           curl --fail --silent --show-error --location \
             --retry 4 --retry-all-errors \
-            "${SOURCE_DASHBOARD_URL}mirror/site_mirror.py?run=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "${SOURCE_DASHBOARD_URL}mirror/site_mirror.py${bust}" \
             --output /tmp/site_mirror.py
           python3 - <<'PY'
           import hashlib
