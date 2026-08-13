@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage Overview</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<!-- Header with Quick Links in banner -->
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-bar-chart-steps"></i> Coverage Overview
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="/sglang-ci/inhouse/">Home</a></li>
+                        <li class="breadcrumb-item active">Coverage</li>
+                    </ol>
+                </nav>
+                <small class="text-muted d-block mt-1">
+                    Replicates sgl-project/sglang's
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/ci-coverage-overview.yml?query=branch%3Amain" target="_blank" rel="noopener">CI Coverage Overview</a>
+                    workflow output, with our AMD-vs-NVIDIA exclusion rules applied.
+                </small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/sgl-project/sglang/blob/main/scripts/ci/utils/ci_coverage_report.py" target="_blank" class="btn btn-outline-secondary" title="Upstream's report generator">
+                        <i class="bi bi-file-earmark-code"></i> ci_coverage_report.py
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/ci-coverage-overview.yml?query=branch%3Amain" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-play-circle"></i> Daily workflow
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/tree/main/test/registered" target="_blank" class="btn btn-outline-info">
+                        <i class="bi bi-folder2-open"></i> test/registered
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading / error state -->
+<div id="coverage-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading…</span>
+    </div>
+    <div class="text-muted mt-2 small">Fetching upstream test/registered/ via GitHub…</div>
+</div>
+<div id="coverage-error" class="alert alert-danger" style="display:none;">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span id="coverage-error-msg"></span>
+</div>
+
+<!-- Main content (revealed once data loads) -->
+<div id="coverage-content" style="display:none;">
+
+    <!-- Summary cards -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">AMD vs NVIDIA Coverage</h6>
+                    <h2 class="card-title" id="card-coverage">-</h2>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-primary" id="card-coverage-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted">enabled AMD / NVIDIA-comparable<span id="card-core-coverage" class="d-none">-</span></small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-danger">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">AMD Tests</h6>
+                    <h2 class="card-title text-danger" id="card-amd">-</h2>
+                    <small class="text-muted">enabled / <span id="card-amd-total">-</span> total</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-success">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">NVIDIA Tests</h6>
+                    <h2 class="card-title text-success" id="card-cuda">-</h2>
+                    <small class="text-muted">
+                        AMD-comparable, enabled.
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">All Registrations</h6>
+                    <h2 class="card-title text-info" id="card-total">-</h2>
+                    <small class="text-muted"><span id="card-disabled">-</span> disabled</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backend Summary table + bar chart (side by side, mirrors the
+         "Detailed Test Breakdown + CI Category Summary" pattern on
+         /upstream-ci) -->
+    <div class="row mb-4">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-cpu"></i> Backend Summary</h6>
+                    <div class="d-flex align-items-center gap-2">
+                        <small id="generated-at" class="text-white-50"></small>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-light py-0"
+                            id="backend-toggle-details"
+                            aria-expanded="false"
+                            onclick="toggleBackendDetails()"
+                        >Show details</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Backend</th>
+                                <th class="text-end backend-detail-col d-none" title="AMD-comparable registrations (enabled + disabled; excludes NV-only). Includes AMD-comparable multimodal_gen.">Total comparable</th>
+                                <th class="text-end" title="Enabled registrations, including AMD-comparable multimodal_gen (diffusion) tests">Enabled</th>
+                                <th class="text-end backend-detail-col d-none" title="Unique NVIDIA-only test files excluded from AMD-comparable coverage (matches the AMD-Excluded NVIDIA Tests panel count)">NV-only</th>
+                                <th class="text-end backend-detail-col d-none" title="Duplicate NV-only registrations: NV-only counts registrations, but the AMD-Excluded NVIDIA Tests panel lists unique files. This is NV-only − unique files (files with multiple registrations, plus NV-only multimodal_gen), i.e. why the panel shows fewer entries than NV-only.">NV-only dup</th>
+                                <th class="text-end backend-detail-col d-none">Disabled</th>
+                                <th class="text-end backend-detail-col d-none" title="Enabled + NV-only + Disabled (matches upstream's per-backend registration total; multimodal_gen included)">Total</th>
+                                <th class="text-end" title="Enabled AMD-comparable registrations that run on every PR. Show details adds a +N suffix: the NV-only (AMD-excluded) per-commit slice, which is not part of the comparable figure.">Per-Commit</th>
+                                <th class="text-end" title="Enabled AMD-comparable registrations that run nightly. Show details adds a +N suffix: the NV-only (AMD-excluded) nightly slice, which is not part of the comparable figure.">Nightly</th>
+                                <th class="text-end" title="AMD row only: this table's AMD Per-Commit divided by its NVIDIA Per-Commit, which is the target.">PR %</th>
+                                <th class="text-end" title="AMD row only: this table's AMD Nightly divided by its NVIDIA Nightly. Over 100% means AMD runs more nightly tests than NVIDIA, which is what pulls the headline coverage up.">Nightly %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="backend-summary-rows"></tbody>
+                    </table>
+                </div>
+                <div class="card-footer py-2">
+                    <small class="text-muted">
+                        <b>AMD vs NVIDIA Coverage</b> = <code>AMD Enabled &divide; NVIDIA-comparable Enabled</code>. &nbsp;
+                        <b>PR %</b> / <b>Nightly %</b> split that ratio by cadence, taking the
+                        NVIDIA row's counts as the target
+                        (<code>AMD Per-Commit &divide; NVIDIA Per-Commit</code>, and the same for
+                        Nightly). This is where the headline comes from: AMD runs more nightly tests
+                        than NVIDIA, so Nightly % is above 100% and carries the overall figure up
+                        while <b>PR %</b> — what a PR actually gates on — sits well below it. &nbsp;
+                        Being <span id="bs-note-diff">-</span> registrations short of the PR target is
+                        not the same as <span id="bs-note-gap">-</span> per-commit NVIDIA tests going
+                        unrun on AMD (<a href="#amd-gap">NVIDIA Tests Not Run on AMD</a>): AMD also
+                        runs <span id="bs-note-amdonly">-</span> per-commit tests NVIDIA doesn't,
+                        mostly under <code>test/registered/amd/</code>, and those offset the count.
+                        <span class="backend-detail-hint">Click <b>Show details</b> for how each column is derived.</span>
+                        <span class="backend-detail-note d-none">
+                            The percentage on the headline card is the AMD row's <b>Enabled</b>
+                            divided by the NVIDIA row's <b>Enabled</b>. &nbsp;
+                            The denominator is <em>NVIDIA-comparable</em>: it already drops the
+                            <b>NV-only</b> registrations — NVIDIA tests AMD doesn't run
+                            (hardware-specific suites, SM120/Marlin-LoRA, NVIDIA-only kernel
+                            benchmarks), listed under
+                            <a href="#amd-excluded">AMD-Excluded NVIDIA Tests</a>. &nbsp;
+                            <b>Per-Commit</b> / <b>Nightly</b> split the AMD-comparable <b>Enabled</b>
+                            count by cadence. &nbsp;
+                            The greyed <code>+N</code> beside them is the <b>NV-only</b> share of
+                            that cadence, so
+                            <code>Per-Commit + Nightly + both +N = Enabled + NV-only</code>. &nbsp;
+                            <b>Total comparable</b> = <code>Enabled + Disabled</code>, the
+                            AMD-comparable registrations. <b>Disabled</b> tests count toward
+                            <b>Total</b> but are excluded from coverage on both sides, so
+                            <code>Total = Enabled + NV-only + Disabled</code> and only the
+                            <b>Enabled</b> columns drive the coverage percentage. &nbsp;
+                            <b>NV-only dup</b> = <code>NV-only &minus; unique files</code>: NV-only
+                            counts <em>registrations</em>, but the
+                            <a href="#amd-excluded">AMD-Excluded NVIDIA Tests</a> panel lists
+                            <em>unique files</em>, so files with multiple registrations (plus
+                            NV-only multimodal_gen) make NV-only larger than the panel's entry count.
+                        </span>
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Backend Summary</h6>
+                </div>
+                <div class="card-body py-2 d-flex align-items-center justify-content-center">
+                    <div id="backend-chart-loading" class="text-center py-2">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span class="ms-2">Loading...</span>
+                    </div>
+                    <div id="backend-chart-wrap" style="display: none; width: 100%;">
+                        <canvas id="backendChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test tiers: core vs daily/opt-in vs kernel -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-layers"></i> Test Tiers (CUDA vs AMD)</h6>
+                    <span class="ms-2 small text-muted">why "overall" &lt; "core"</span>
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary ms-auto"
+                        id="tiers-toggle-details"
+                        aria-expanded="false"
+                        onclick="toggleTierDetails()"
+                    >Show details</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-2" style="font-size:0.9rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tier</th><th>Cadence</th>
+                                    <th class="text-end">NVIDIA</th><th class="text-end">NV-only</th>
+                                    <th class="text-end">AMD</th>
+                                    <th class="text-end" title="AMD-comparable NVIDIA registrations in this tier with no enabled AMD registration for the same file">Not on AMD</th>
+                                    <th class="text-end">Coverage</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tiers-body"></tbody>
+                        </table>
+                    </div>
+                    <small class="text-muted d-none" id="tiers-notes">
+                        <b>Not on AMD</b> counts this tier's AMD-comparable NVIDIA registrations whose file has no <code>register_amd_ci(...)</code> — the gap <b>Coverage</b> can hide, since Coverage divides totals rather than measuring overlap (AMD's nightly surface is larger than NVIDIA's, which is also why core can exceed 100%). Listed under <a href="#amd-gap">NVIDIA Tests Not Run on AMD</a>. It credits AMD for running a file at <em>any</em> cadence, so <span id="tiers-note-nightlyonly">-</span> further registrations that NVIDIA gates every PR on, but AMD only covers nightly, are not counted. &nbsp;
+                        <b>Kernel/Total AMD shows</b> <code>registered (+sgl-kernel existing)</code>; <b>Coverage shows</b> <code>registered% (potential% incl. sgl-kernel)</code>. &nbsp;
+                        <b>core</b> = base-* / stage-* suites plus nightly registrations currently classified in the core bucket; use Backend Summary's <b>Nightly</b> column to split cadence. &nbsp;
+                        <b>extra</b> = <code>extra-*</code> suites (incl. KV-canary) — run <b>2&times;/day on schedule + opt-in PRs</b> (<code>run-ci-extra</code> label), <b>not every PR</b>. &nbsp;
+                        <b>kernel</b> = JIT/sgl-kernel tests (upstream PR #27644, merged 2026-06-09), incl. kernel perf benchmarks (<code>*-kernel-benchmark-*</code>), which AMD runs via <code>jit-kernel-unit-test-amd</code>. NVIDIA = <code>test/registered/kernels</code> registrations; AMD = <span id="tiers-kernel-reg">-</span> registered + <span id="tiers-kernel-sgl">-</span> run directly from <code>sgl-kernel/tests/</code> via the <code>sgl-kernel-unit-test-amd</code> job (not <code>register_amd_ci</code>, so not in test/registered). Indicative, not exact. Note: the <code>nightly-kernel-1-gpu</code> suite is registered <code>nightly=True</code> but <b>not yet wired into the nightly pipeline</b> — it runs via the per-PR <code>jit_kernel</code> job.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Summary + chart + per-folder tests (combined section) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-folder2-open"></i> Tests by Folder</h6>
+                    <input type="search" id="folder-filter" class="form-control form-control-sm" placeholder="Filter folders…" style="max-width: 240px;">
+                </div>
+                <div class="card-body">
+                    <!-- Summary table + registrations chart, side by side -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-lg-7">
+                            <div style="max-height: 480px; overflow-y: auto;">
+                                <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.85rem;">
+                                    <thead class="table-dark sticky-top">
+                                        <tr>
+                                            <th>Folder</th>
+                                            <th class="text-end">CUDA</th>
+                                            <th class="text-end">AMD</th>
+                                            <th class="text-end">NPU</th>
+                                            <th class="text-end">CPU</th>
+                                            <th class="text-end">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="folder-summary-rows"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-lg-5 d-flex flex-column">
+                            <small class="text-muted mb-1"><i class="bi bi-bar-chart"></i> Top folders by registrations</small>
+                            <div class="flex-grow-1 d-flex align-items-center justify-content-center">
+                                <canvas id="folderChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Collapsible per-folder file listing -->
+                    <div id="tests-by-folder" class="border-top pt-2" style="max-height: 600px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AMD Excluded NVIDIA tests -->
+    <div class="row mb-4" id="amd-excluded">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#amdExcludedTable" aria-expanded="true" style="cursor: pointer;">
+                    <h6 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        AMD-Excluded NVIDIA Tests (<span id="amd-excluded-count">-</span>)
+                    </h6>
+                    <small><i class="bi bi-chevron-up"></i> Click to collapse</small>
+                </div>
+                <div id="amdExcludedTable" class="collapse show">
+                    <div class="card-body" style="max-height: 520px; overflow-y: auto;">
+                        <p class="small text-muted mb-2">
+                            NVIDIA registrations that the dashboard's AMD-coverage view rules out before
+                            comparing AMD vs NVIDIA totals, all defined in <code>compare_suites.py</code>:
+                            hardware-specific suites (<code>NVIDIA_HARDWARE_SPECIFIC_SUITES</code>),
+                            SM120/Marlin-LoRA tests gated by <code>_NVIDIA_ONLY_FILE_PATTERNS</code>,
+                            NVIDIA-only kernel perf benchmarks
+                            (<code>_CUDA_ONLY_BENCHMARK_FILES</code> plus NVFP4/MXFP8/FP4-indexer/SM90),
+                            and the per-file curated list <code>AMD_EXCLUSION_REASONS</code> — tests whose
+                            own source gates them to NVIDIA (an <code>is_hip</code> bail-out, a compute-capability
+                            requirement, a hardcoded fa3/fa4/flashinfer backend, or a CUDA-only library
+                            under test). Contrast with
+                            <a href="#amd-gap">NVIDIA Tests Not Run on AMD</a>, which AMD <em>could</em> run.
+                            Grouped by category — click a group to expand.
+                        </p>
+                        <!-- One collapsible subsection per exclusion category, rendered by JS. -->
+                        <div id="amd-excluded-groups"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NVIDIA tests AMD is comparable on but doesn't run: the closable gap -->
+    <div class="row mb-4" id="amd-gap">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white py-2 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#amdGapTable" aria-expanded="false" style="cursor: pointer;">
+                    <h6 class="mb-0">
+                        <i class="bi bi-slash-circle"></i>
+                        NVIDIA Tests Not Run on AMD (<span id="amd-gap-count">-</span>)
+                    </h6>
+                    <small><i class="bi bi-chevron-down"></i> Click to expand</small>
+                </div>
+                <div id="amdGapTable" class="collapse">
+                    <div class="card-body" style="max-height: 520px; overflow-y: auto;">
+                        <p class="small text-muted mb-2">
+                            NVIDIA registrations the dashboard counts as <b>AMD-comparable</b> (so they are
+                            in the coverage denominator) whose file has no enabled
+                            <code>register_amd_ci(...)</code>. Unlike
+                            <a href="#amd-excluded">AMD-Excluded NVIDIA Tests</a>, nothing about the
+                            hardware or libraries blocks these — a registration would close each one.
+                            This is the gap the headline percentage can hide: it divides totals, and
+                            AMD's nightly surface is larger than NVIDIA's. Grouped by tier, then folder.
+                        </p>
+                        <div id="amd-gap-groups"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disabled tests -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white py-2 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#disabledTable" aria-expanded="false" style="cursor: pointer;">
+                    <h6 class="mb-0">
+                        <i class="bi bi-slash-circle"></i>
+                        Disabled Tests (<span id="disabled-count">-</span>)
+                    </h6>
+                    <small><i class="bi bi-chevron-down"></i> Click to expand</small>
+                </div>
+                <div id="disabledTable" class="collapse">
+                    <div class="card-body" style="max-height: 360px; overflow-y: auto;">
+                        <table class="table table-sm table-striped" style="font-size: 0.8rem;">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>File</th>
+                                    <th>Folder</th>
+                                    <th>Backend</th>
+                                    <th>Suite</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody id="disabled-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coverage Trends (mirrors /upstream-ci style) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-graph-up"></i> Coverage Trends (<span id="coverage-trends-days-label">Last 30 Days</span>)</h5>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Trend period">
+                        <button type="button" class="btn btn-light active" id="cov-btn-30-days" onclick="loadCoverageTrends(30)">30 Days</button>
+                        <button type="button" class="btn btn-outline-light" id="cov-btn-90-days" onclick="loadCoverageTrends(90)">90 Days</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="coverage-trends-loading" class="text-center py-4">
+                        <div class="spinner-border text-info" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="coverage-trends-chart-wrap" style="display: none;">
+                        <canvas id="coverageTrendsChart" height="100"></canvas>
+                    </div>
+                    <div id="coverage-trends-empty" style="display: none;">
+                        <div class="alert alert-info mb-0">
+                            <i class="bi bi-info-circle"></i> Not enough historical data for trends. More daily snapshots needed.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coverage detail by day (joins trend deltas with the per-PR test
+         changes that caused them) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 d-inline"><i class="bi bi-calendar-week"></i> Coverage detail by day</h5>
+                        <small class="ms-2 d-none d-md-inline" style="opacity:0.85">day-over-day change &amp; the PRs behind it</small>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Detail period">
+                        <button type="button" class="btn btn-light active" id="cbd-btn-7" onclick="loadRecentTests(7)">7d</button>
+                        <button type="button" class="btn btn-outline-light" id="cbd-btn-30" onclick="loadRecentTests(30)">30d</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="coverage-by-day-loading" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-info"></div>
+                        <small class="text-muted ms-2">Loading per-day coverage detail...</small>
+                    </div>
+                    <div id="coverage-by-day-content" style="display:none;"></div>
+                </div>
+                <div class="card-footer small text-muted">
+                    Each row is a daily snapshot: the coverage / AMD / NVIDIA columns show the
+                    day-over-day <strong>&Delta;</strong> from the Coverage Trends series, and
+                    <strong>Net registered change</strong> sums the &plusmn;registrations that day's
+                    merged PRs applied (from Recently Added Tests). Click a day to see the PRs.
+                    A coverage &Delta; with <em>no</em> registered-test change usually means a
+                    snapshot-timing or data-collection blip rather than a real coverage move.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recently Added Tests (moved from /upstream-ci) -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0 d-inline"><i class="bi bi-file-earmark-plus"></i> Recently Added Tests</h5>
+                        <span class="badge bg-secondary ms-2" id="recent-test-count">...</span>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <div class="form-check form-switch mb-0 d-flex align-items-center">
+                            <input class="form-check-input" type="checkbox" id="showModifiedToggle" onchange="renderRecentTests()">
+                            <label class="form-check-label small ms-1" for="showModifiedToggle">Show modified</label>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-secondary active" data-test-days="7" onclick="loadRecentTests(7)">7d</button>
+                            <button class="btn btn-outline-secondary" data-test-days="30" onclick="loadRecentTests(30)">30d</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="recent-tests-loading" class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary"></div>
+                        <small class="text-muted ms-2">Loading recent test changes...</small>
+                    </div>
+                    <div id="recent-tests-content" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Roadmap: what to do about the gap above -->
+    <div class="row mb-4" id="roadmap">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0"><i class="bi bi-signpost-split"></i> Roadmap</h6>
+                </div>
+                <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div>
+                        <p class="mb-1">
+                            The <a href="#amd-gap">NVIDIA Tests Not Run on AMD</a> list
+                            (<span id="roadmap-gap-count">-</span> files) is a backlog, not a verdict:
+                            nothing about the hardware blocks those tests, they just have no
+                            <code>register_amd_ci(...)</code>. The roadmap page sorts them into
+                            phases — kernel suites, 1-GPU per-commit, multi-GPU, extra, nightly —
+                            and shows the coverage each phase would buy, the runner time it costs,
+                            and the target AMD suite per file.
+                        </p>
+                        <small class="text-muted">
+                            Built from this same snapshot, so it stays current with the hourly refresh.
+                        </small>
+                    </div>
+                    <a href="/sglang-ci/coverage/roadmap/" class="btn btn-primary">
+                        <i class="bi bi-map"></i> Open coverage roadmap
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    let folderChart = null;
+    let backendChart = null;
+    let report = null;
+    let tierDetailsVisible = false;
+    let backendDetailsVisible = false;
+
+    // Bootstrap-style badge per backend, matches the rest of the dashboard
+    // (CUDA = success, AMD = danger, NPU/CPU = secondary).
+    function backendBadge(name) {
+        const cls = name === 'CUDA' ? 'bg-success'
+                  : name === 'AMD'  ? 'bg-danger'
+                  : name === 'NPU'  ? 'bg-info text-dark'
+                  : 'bg-secondary';
+        return `<span class="badge ${cls}">${name}</span>`;
+    }
+    function statusBadge(s) {
+        if (s === 'disabled')   return '<span class="badge bg-secondary">disabled</span>';
+        if (s === 'nightly')    return '<span class="badge bg-info text-dark">nightly</span>';
+        return '<span class="badge bg-primary">per-commit</span>';
+    }
+    function escHtml(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    fetch('/api/coverage/overview')
+        .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(j.error || ('HTTP ' + r.status))))
+        .then(data => {
+            if (data.error) throw data.error;
+            report = data;
+            setPageLastUpdated(data.generated_at);
+            renderAll();
+            document.getElementById('coverage-loading').style.display = 'none';
+            document.getElementById('coverage-content').style.display = 'block';
+            // Trends fetch is independent — kick it off as soon as the page
+            // skeleton is on screen, regardless of whether the per-row data
+            // is still painting.
+            loadCoverageTrends(30);
+        })
+        .catch(err => {
+            document.getElementById('coverage-loading').style.display = 'none';
+            document.getElementById('coverage-error').style.display = 'block';
+            document.getElementById('coverage-error-msg').textContent =
+                'Failed to load coverage data: ' + err;
+        });
+
+    function renderAll() {
+        renderSummaryCards(report.summary);
+        renderTiers(report.tiers, report.summary);
+        renderBackendSummary(report.backend_summary, report.tiers);
+        renderBackendChart(report.backend_summary, report.summary);
+        renderFolderSummary(report.folder_summary);
+        renderFolderChart(report.folder_summary);
+        renderTestsByFolder(report.tests_by_folder);
+        renderAmdExcluded(report.amd_excluded);
+        renderAmdGap(report.amd_gap);
+        renderDisabled(report.disabled_tests);
+
+        if (report.generated_at) {
+            document.getElementById('generated-at').textContent = 'Generated ' + report.generated_at + ' UTC';
+        }
+
+        document.getElementById('folder-filter').addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('[data-folder-name]').forEach(el => {
+                const name = el.getAttribute('data-folder-name').toLowerCase();
+                el.style.display = name.includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    function renderSummaryCards(s) {
+        const cov = s.amd_vs_cuda_coverage_pct;
+        document.getElementById('card-coverage').textContent = cov == null ? 'N/A' : cov.toFixed(1) + '%';
+        document.getElementById('card-coverage-bar').style.width = (cov == null ? 0 : Math.min(cov, 100)) + '%';
+        const core = s.core_coverage_pct;
+        const coreEl = document.getElementById('card-core-coverage');
+        if (coreEl) coreEl.textContent = core == null ? 'N/A' : core.toFixed(1) + '%';
+        document.getElementById('card-amd').textContent = s.amd_enabled;
+        document.getElementById('card-amd-total').textContent = (report.backend_summary.AMD || {}).total ?? '-';
+        document.getElementById('card-cuda').textContent = s.cuda_enabled;
+        // Use registration count (consistent units with cuda_enabled) so
+        // comparable + excluded reconciles with the test/registered total.
+        // amd_excluded_count (files) still drives the AMD-Excluded panel header.
+        const exReg = s.amd_excluded_registrations != null ? s.amd_excluded_registrations : s.amd_excluded_count;
+        const exEl = document.getElementById('card-amd-excluded');
+        if (exEl) exEl.textContent = exReg;
+        const totEl = document.getElementById('card-cuda-total');
+        if (totEl) totEl.textContent = s.cuda_registered_total_enabled != null ? s.cuda_registered_total_enabled : '-';
+        document.getElementById('card-total').textContent = s.total;
+        document.getElementById('card-disabled').textContent = s.disabled;
+    }
+
+    function renderTiers(tiers, s) {
+        const body = document.getElementById('tiers-body');
+        if (!body || !tiers) return;
+        const meta = {
+            core:   {label: 'Core',   cadence: 'base/stage + nightly bucket'},
+            extra:  {label: 'Extra',  cadence: 'daily + opt-in (run-ci-extra)'},
+            kernel: {label: 'Kernel', cadence: 'JIT kernels — separate AMD path'},
+            total:  {label: 'Total',  cadence: 'all tiers'},
+        };
+        const covClass = (cov) => cov == null ? 'text-muted' : (cov >= 80 ? 'text-success' : (cov >= 40 ? 'text-warning' : 'text-danger'));
+        const fmtPct = (v) => v == null ? 'N/A' : v.toFixed(0) + '%';
+        const pct = (num, denom) => denom ? (num / denom * 100) : null;
+        const nvOnlyTotalCell = (info) => {
+            const nv = info.nv_only || {};
+            const total = nv.total || 0;
+            return total ? `${total}` : '';
+        };
+        // Older published snapshots have no `gap`; render blank rather than 0
+        // so a stale payload doesn't claim the gap is closed.
+        const gapCell = (n) => n == null ? '' : (n ? `<span class="text-danger">${n}</span>` : '0');
+        const amdTotalCell = (info, t) => {
+            const hasExisting = (t === 'kernel' || t === 'total') && info.amd_sgl_kernel_tests;
+            if (!hasExisting) return `${info.amd_enabled}`;
+            const reg = info.amd_registered;
+            const existing = info.amd_sgl_kernel_tests;
+            return `${reg} <span class="text-muted">(+${existing})</span>`;
+        };
+        const covTotalCell = (info, t) => {
+            const hasExisting = (t === 'kernel' || t === 'total') && info.amd_sgl_kernel_tests;
+            if (!hasExisting) {
+                const cov = info.coverage_pct;
+                return `<span class="${covClass(cov)}">${fmtPct(cov)}</span>`;
+            }
+            const covReg = info.coverage_registered_pct;
+            const covPot = info.coverage_pct;
+            return `<span class="${covClass(covReg)}">${fmtPct(covReg)}</span> <span class="text-muted">(${fmtPct(covPot)})</span>`;
+        };
+        const amdSplitCell = (info, t, kind) => {
+            const registered = (info.amd || {})[kind] || 0;
+            const existing = (kind === 'per_commit' && (t === 'kernel' || t === 'total')) ? (info.amd_sgl_kernel_tests || 0) : 0;
+            return existing ? `${registered} <span class="text-muted">(+${existing})</span>` : `${registered}`;
+        };
+        const covSplitCell = (info, t, kind) => {
+            const cuda = (info.cuda || {})[kind] || 0;
+            const amdRegistered = (info.amd || {})[kind] || 0;
+            const existing = (kind === 'per_commit' && (t === 'kernel' || t === 'total')) ? (info.amd_sgl_kernel_tests || 0) : 0;
+            const covReg = pct(amdRegistered, cuda);
+            if (!existing) return `<span class="${covClass(covReg)}">${fmtPct(covReg)}</span>`;
+            const covPot = pct(amdRegistered + existing, cuda);
+            return `<span class="${covClass(covReg)}">${fmtPct(covReg)}</span> <span class="text-muted">(${fmtPct(covPot)})</span>`;
+        };
+        let html = '';
+        for (const t of ['core', 'extra', 'kernel', 'total']) {
+            const info = tiers[t]; if (!info) continue;
+            const rowCls = (t === 'core') ? 'table-light fw-bold' : (t === 'total' ? 'fw-bold border-top' : '');
+            html += `<tr class="${rowCls}">
+                <td>${meta[t].label}</td>
+                <td class="small text-muted">${meta[t].cadence}</td>
+                <td class="text-end">${info.cuda_enabled}</td>
+                <td class="text-end">${nvOnlyTotalCell(info)}</td>
+                <td class="text-end">${amdTotalCell(info, t)}</td>
+                <td class="text-end">${gapCell((info.gap || {}).total)}</td>
+                <td class="text-end">${covTotalCell(info, t)}</td>
+            </tr>`;
+            for (const split of [
+                {kind: 'per_commit', label: 'PR'},
+                {kind: 'nightly', label: 'nightly'},
+            ]) {
+                const cuda = (info.cuda || {})[split.kind] || 0;
+                const nvOnly = (info.nv_only || {})[split.kind] || 0;
+                html += `<tr class="small text-muted tier-detail-row">
+                    <td></td>
+                    <td class="ps-4">${split.label}</td>
+                    <td class="text-end">${cuda}</td>
+                    <td class="text-end">${nvOnly}</td>
+                    <td class="text-end">${amdSplitCell(info, t, split.kind)}</td>
+                    <td class="text-end">${gapCell((info.gap || {})[split.kind])}</td>
+                    <td class="text-end">${covSplitCell(info, t, split.kind)}</td>
+                </tr>`;
+            }
+        }
+        body.innerHTML = html;
+        setTierDetailsVisible(tierDetailsVisible);
+        // Kernel-tier AMD breakdown (registered jit vs sgl-kernel/tests).
+        const k = tiers.kernel || {};
+        const regEl = document.getElementById('tiers-kernel-reg');
+        const sglEl = document.getElementById('tiers-kernel-sgl');
+        if (regEl) regEl.textContent = (k.amd_registered != null ? k.amd_registered : '-');
+        if (sglEl) sglEl.textContent = (k.amd_sgl_kernel_tests != null ? k.amd_sgl_kernel_tests : '-');
+        const nightlyOnly = ((tiers.total || {}).gap || {}).amd_nightly_only;
+        const noEl = document.getElementById('tiers-note-nightlyonly');
+        if (noEl) noEl.textContent = nightlyOnly != null ? nightlyOnly : '?';
+    }
+
+    function setTierDetailsVisible(visible) {
+        tierDetailsVisible = visible;
+        document.querySelectorAll('.tier-detail-row').forEach(row => {
+            row.classList.toggle('d-none', !visible);
+        });
+        const notes = document.getElementById('tiers-notes');
+        if (notes) notes.classList.toggle('d-none', !visible);
+        const btn = document.getElementById('tiers-toggle-details');
+        if (btn) {
+            btn.textContent = visible ? 'Hide details' : 'Show details';
+            btn.setAttribute('aria-expanded', visible ? 'true' : 'false');
+        }
+    }
+
+    function toggleTierDetails() {
+        setTierDetailsVisible(!tierDetailsVisible);
+    }
+
+    function renderBackendSummary(bs, tiers) {
+        const order = ['CUDA', 'AMD', 'NPU', 'CPU'];
+        const tbody = document.getElementById('backend-summary-rows');
+        // The AMD-vs-NVIDIA columns below compare two rows, so they only have a
+        // meaning on one row each: the gap describes NVIDIA tests, the
+        // percentages describe how much of them AMD runs. Every other cell gets
+        // an em dash rather than a number that would invite a wrong reading.
+        const NA = '<span class="text-muted">—</span>';
+        const cudaRow = bs.CUDA || {};
+        const gap = ((tiers || {}).total || {}).gap || {};
+        const covClass = (cov) => cov == null ? 'text-muted'
+            : (cov >= 80 ? 'text-success' : (cov >= 40 ? 'text-warning' : 'text-danger'));
+        const covCell = (amdValue, cudaValue) => {
+            if (!cudaValue) return NA;
+            const cov = amdValue / cudaValue * 100;
+            return `<span class="${covClass(cov)} fw-semibold" title="${amdValue} AMD / ${cudaValue} NVIDIA">${cov.toFixed(1)}%</span>`;
+        };
+        tbody.innerHTML = order.filter(b => bs[b]).map(b => {
+            const row = bs[b];
+            // Enabled and NV-only already include multimodal_gen (comparable
+            // mm_gen folded into Enabled, NV-only mm_gen into NV-only).
+            const grandTotal = (row.enabled || 0) + (row.nv_only || 0) + (row.disabled || 0);
+            // NV-only registrations are the AMD-excluded NVIDIA tests — link
+            // straight to that panel so the number is auditable.
+            const nvOnlyCell = row.nv_only
+                ? `<a href="#amd-excluded" class="text-decoration-none" title="Jump to AMD-Excluded NVIDIA Tests">${row.nv_only} <i class="bi bi-box-arrow-in-down small"></i></a>`
+                : '';
+            // NV-only counts registrations; the AMD-Excluded panel lists unique
+            // files. Surface the gap so 296 (regs) vs 240 (files) reconciles.
+            const nvOnlyDup = (row.nv_only || 0) - (row.nv_only_files || 0);
+            const nvOnlyDupCell = nvOnlyDup > 0
+                ? `<span title="${row.nv_only} NV-only registrations across ${row.nv_only_files} unique files → ${nvOnlyDup} duplicate registration${nvOnlyDup === 1 ? '' : 's'}">+${nvOnlyDup}</span>`
+                : '';
+            // Per-Commit / Nightly count AMD-comparable tests only, so on the
+            // NVIDIA row they don't add up to Total. The NV-only slice of each
+            // cadence explains that gap, so it rides along with the details
+            // toggle rather than cluttering the default view.
+            const cadenceCell = (value, nvOnly, cadence) => {
+                const base = value != null ? value : 0;
+                if (!nvOnly) return `${base}`;
+                return `${base} <span class="text-muted small backend-detail-inline d-none" title="+${nvOnly} NV-only ${cadence} test${nvOnly === 1 ? '' : 's'} (AMD-excluded, not counted in the comparable figure) → ${base + nvOnly} ${cadence} total">+${nvOnly}</span>`;
+            };
+            // Coverage compares two rows, so it only means something on the AMD
+            // one: NVIDIA's cadence counts are the target, AMD's are the actual.
+            const prCovCell = b === 'AMD' ? covCell(row.per_commit, cudaRow.per_commit) : NA;
+            const nightlyCovCell = b === 'AMD' ? covCell(row.nightly, cudaRow.nightly) : NA;
+            return `<tr>
+                <td>${backendBadge(b)}</td>
+                <td class="text-end backend-detail-col">${row.total}</td>
+                <td class="text-end fw-bold">${row.enabled}</td>
+                <td class="text-end text-muted backend-detail-col">${nvOnlyCell}</td>
+                <td class="text-end text-muted backend-detail-col">${nvOnlyDupCell}</td>
+                <td class="text-end text-muted backend-detail-col">${row.disabled || ''}</td>
+                <td class="text-end backend-detail-col">${grandTotal}</td>
+                <td class="text-end">${cadenceCell(row.per_commit, row.nv_only_per_commit, 'per-commit')}</td>
+                <td class="text-end">${cadenceCell(row.nightly, row.nv_only_nightly, 'nightly')}</td>
+                <td class="text-end">${prCovCell}</td>
+                <td class="text-end">${nightlyCovCell}</td>
+            </tr>`;
+        }).join('');
+
+        // Figures quoted in the footer note about why the gap is not a
+        // subtraction. Blank on a snapshot that predates them.
+        const noteVals = {
+            'bs-note-diff': (cudaRow.per_commit != null && (bs.AMD || {}).per_commit != null)
+                ? cudaRow.per_commit - bs.AMD.per_commit : null,
+            'bs-note-gap': gap.per_commit,
+            'bs-note-amdonly': gap.amd_only_per_commit,
+        };
+        for (const [id, v] of Object.entries(noteVals)) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = v == null ? '?' : v;
+        }
+        setBackendDetailsVisible(backendDetailsVisible);
+    }
+
+    // Default view is the three headline columns (Enabled / Per-Commit /
+    // Nightly); the reconciliation columns and figures are opt-in.
+    function setBackendDetailsVisible(visible) {
+        backendDetailsVisible = visible;
+        const sel = '.backend-detail-col, .backend-detail-inline, .backend-detail-note';
+        document.querySelectorAll(sel).forEach(el => {
+            el.classList.toggle('d-none', !visible);
+        });
+        document.querySelectorAll('.backend-detail-hint').forEach(el => {
+            el.classList.toggle('d-none', visible);
+        });
+        const btn = document.getElementById('backend-toggle-details');
+        if (btn) {
+            btn.textContent = visible ? 'Hide details' : 'Show details';
+            btn.setAttribute('aria-expanded', visible ? 'true' : 'false');
+        }
+    }
+
+    function toggleBackendDetails() {
+        setBackendDetailsVisible(!backendDetailsVisible);
+    }
+
+    // One stacked bar per backend (AMD / NVIDIA / NPU / CPU) split into
+    // Per-Commit / Nightly, plus an extra "AMD-Excluded NVIDIA" segment
+    // that only stacks on top of the NVIDIA bar (the rest stay zero so
+    // the legend doesn't lie). Mirrors the visual style of
+    // /upstream-ci's "CI Category Summary" chart so the two pages read
+    // consistently.
+    function renderBackendChart(bs, summary) {
+        document.getElementById('backend-chart-loading').style.display = 'none';
+        document.getElementById('backend-chart-wrap').style.display = 'block';
+        const ctx = document.getElementById('backendChart').getContext('2d');
+        if (backendChart) backendChart.destroy();
+
+        // Display order — AMD first to match the table's "AMD vs NVIDIA"
+        // story, then the supporting backends.
+        const order = ['AMD', 'CUDA', 'NPU', 'CPU'];
+        const present = order.filter(b => bs[b]);
+        const labels = present.map(b => b === 'CUDA' ? 'NVIDIA' : b);
+
+        const perCommitData = present.map(b => (bs[b] || {}).per_commit || 0);
+        const nightlyData   = present.map(b => (bs[b] || {}).nightly    || 0);
+        const amdExcluded   = summary.amd_excluded_registrations != null
+            ? summary.amd_excluded_registrations
+            : (summary.amd_excluded_count || 0);
+        // AMD-excluded NVIDIA only stacks on top of the NVIDIA (CUDA) bar.
+        const excludedData  = present.map(b => b === 'CUDA' ? amdExcluded : 0);
+
+        backendChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Per-Commit',
+                        data: perCommitData,
+                        backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 1,
+                        stack: 'tests',
+                    },
+                    {
+                        label: 'Nightly',
+                        data: nightlyData,
+                        backgroundColor: 'rgba(13, 202, 240, 0.7)',
+                        borderColor: 'rgba(13, 202, 240, 1)',
+                        borderWidth: 1,
+                        stack: 'tests',
+                    },
+                    {
+                        label: 'AMD-Excluded NVIDIA',
+                        data: excludedData,
+                        backgroundColor: 'rgba(108, 117, 125, 0.6)',
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        borderWidth: 1,
+                        stack: 'tests',
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(items) {
+                                const lab = items[0].dataset.label;
+                                if (lab === 'AMD-Excluded NVIDIA') {
+                                    return 'NVIDIA tests AMD doesn\'t run\n(hardware-specific suites + SM120/Marlin LoRA)';
+                                }
+                                return '';
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: { stacked: true },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        title: { display: true, text: 'Number of Registrations' },
+                    },
+                },
+            },
+        });
+    }
+
+    function renderFolderSummary(fs) {
+        const tbody = document.getElementById('folder-summary-rows');
+        const folders = Object.keys(fs).sort();
+        tbody.innerHTML = folders.map(f => {
+            const row = fs[f];
+            const excl = row.amd_excluded || 0;
+            const exclBadge = excl > 0
+                ? ` <span class="badge bg-warning text-dark" title="${excl} of these are AMD-excluded NVIDIA tests">−${excl}</span>`
+                : '';
+            return `<tr data-folder-name="${escHtml(f)}">
+                <td><code>${escHtml(f)}/</code>${exclBadge}</td>
+                <td class="text-end">${row.CUDA || ''}</td>
+                <td class="text-end">${row.AMD || ''}</td>
+                <td class="text-end">${row.NPU || ''}</td>
+                <td class="text-end">${row.CPU || ''}</td>
+                <td class="text-end fw-bold">${row.total}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderFolderChart(fs) {
+        const folders = Object.keys(fs).map(name => ({ name, total: fs[name].total, ...fs[name] }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 12);
+        const ctx = document.getElementById('folderChart').getContext('2d');
+        if (folderChart) folderChart.destroy();
+        folderChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: folders.map(f => f.name),
+                datasets: [
+                    { label: 'CUDA', data: folders.map(f => f.CUDA || 0), backgroundColor: 'rgba(40,167,69,0.85)' },
+                    { label: 'AMD',  data: folders.map(f => f.AMD  || 0), backgroundColor: 'rgba(220,53,69,0.85)' },
+                    { label: 'NPU',  data: folders.map(f => f.NPU  || 0), backgroundColor: 'rgba(13,202,240,0.85)' },
+                    { label: 'CPU',  data: folders.map(f => f.CPU  || 0), backgroundColor: 'rgba(108,117,125,0.85)' },
+                ],
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+                scales: { x: { stacked: true, beginAtZero: true }, y: { stacked: true } },
+            },
+        });
+    }
+
+    function renderTestsByFolder(tbf) {
+        const root = document.getElementById('tests-by-folder');
+        const folders = Object.keys(tbf).sort();
+        const html = folders.map((f, idx) => {
+            const entry = tbf[f];
+            const collapseId = `folder-${idx}`;
+            const excludedCount = (entry.amd_excluded_tests || []).length;
+            const backendChips = ['CUDA', 'AMD', 'NPU', 'CPU']
+                .filter(b => entry.backends[b])
+                .map(b => `${backendBadge(b)}<small class="text-muted ms-1">${entry.backends[b].length}</small>`)
+                .join(' &nbsp; ');
+            const exclChip = excludedCount > 0
+                ? ` <span class="badge bg-warning text-dark" title="AMD-excluded NVIDIA tests">EXCL</span><small class="text-muted ms-1">${excludedCount}</small>`
+                : '';
+            const sections = ['CUDA', 'AMD', 'NPU', 'CPU']
+                .filter(b => entry.backends[b])
+                .map(b => {
+                    const tests = entry.backends[b];
+                    const rows = tests.map(t => `
+                        <tr>
+                            <td><a href="https://github.com/sgl-project/sglang/blob/main/${escHtml(t.path)}" target="_blank"><code>${escHtml(t.path)}</code></a></td>
+                            <td class="text-muted small">${escHtml(t.suite)}</td>
+                            <td class="text-end small">${t.est_time.toFixed(0)}s</td>
+                            <td>${statusBadge(t.status)}</td>
+                        </tr>`).join('');
+                    return `
+                        <div class="ms-4 mt-2">
+                            <strong>${backendBadge(b)} <span class="text-muted small">${tests.length} tests</span></strong>
+                            <table class="table table-sm table-borderless mb-0 mt-1" style="font-size: 0.8rem;">
+                                <thead class="table-light"><tr><th>File</th><th>Suite</th><th class="text-end">Est.</th><th>Status</th></tr></thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>`;
+                }).join('');
+            // Add the AMD-excluded NVIDIA tests as a separate sub-table so users
+            // see what's filtered without conflating it with eligible tests.
+            const exclTests = entry.amd_excluded_tests || [];
+            const exclSection = exclTests.length === 0 ? '' : `
+                <div class="ms-4 mt-2">
+                    <strong><span class="badge bg-warning text-dark">EXCLUDED</span>
+                        <span class="text-muted small">${exclTests.length} NVIDIA tests AMD doesn't run (hardware-specific / SM120 / Marlin LoRA)</span>
+                    </strong>
+                    <table class="table table-sm table-borderless mb-0 mt-1" style="font-size: 0.8rem;">
+                        <thead class="table-light"><tr><th>File</th><th>Suite</th><th>Reason</th><th class="text-end">Est.</th></tr></thead>
+                        <tbody>
+                            ${exclTests.map(t => `
+                                <tr>
+                                    <td><a href="https://github.com/sgl-project/sglang/blob/main/${escHtml(t.path)}" target="_blank"><code>${escHtml(t.path)}</code></a></td>
+                                    <td class="text-muted small">${escHtml(t.suite)}</td>
+                                    <td class="small">${escHtml(t.amd_excluded_reason)}</td>
+                                    <td class="text-end small">${t.est_time.toFixed(0)}s</td>
+                                </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+            return `
+                <div data-folder-name="${escHtml(f)}" class="border-bottom">
+                    <a class="d-flex justify-content-between align-items-center px-3 py-2 text-decoration-none text-body" data-bs-toggle="collapse" href="#${collapseId}" role="button">
+                        <div>
+                            <strong><code>${escHtml(f)}/</code></strong>
+                            <span class="text-muted small ms-2">${entry.total} tests</span>
+                        </div>
+                        <div>${backendChips}${exclChip}</div>
+                    </a>
+                    <div class="collapse" id="${collapseId}">
+                        <div class="px-3 py-2 bg-light">${sections}${exclSection}</div>
+                    </div>
+                </div>`;
+        }).join('');
+        root.innerHTML = html;
+    }
+
+    // Ordered classification rules (first match wins) that fold the free-text
+    // exclusion reasons into a handful of buckets for the grouped view.
+    const AMD_EXCLUDE_CATEGORIES = [
+        { label: 'Hardware-specific suite',                 test: r => /^Hardware-specific suite/i.test(r) },
+        { label: 'NVIDIA-specific model',                   test: r => /NVIDIA-specific model|nemotron/i.test(r) },
+        { label: 'Blackwell / SM120 (RTX 5090, B200)',      test: r => /SM120|Blackwell|RTX ?5090|\bB200\b/i.test(r) },
+        { label: 'FlashInfer (NVIDIA-only)',                test: r => /flashinfer/i.test(r) },
+        { label: 'FlashMLA sparse (NVIDIA-only)',           test: r => /flashmla/i.test(r) },
+        { label: 'FlashAttention-3 / FA3 / FA4',            test: r => /\bFA3\b|\bfa4\b|FlashAttention-?3/i.test(r) },
+        { label: 'CUDA-only kernels (Marlin / Cutlass / AWQ / NVFP4 / DeepGEMM / TileLang)', test: r => /JIT kernel|marlin|cutlass|cutedsl|tilelang|\bAWQ\b|NVFP4|deepgemm|moe_wna16/i.test(r) },
+        { label: 'NVIDIA SM/arch-gated (Hopper, SM80-SM100)', test: r => /\bSM ?\d{2,3}\b|sm90a|Hopper|is_sm\d+_supported|get_jit_cuda_arch|get_device_capability|CUDA arch/i.test(r) },
+        { label: 'Quantization unsupported on ROCm',        test: r => /mxfp4|gguf|gptq|modelopt|gpt-oss/i.test(r) },
+        { label: 'Private model',                           test: r => /private model/i.test(r) },
+        { label: 'CUDA-only code path / driver API',         test: r => /skipIf\(is_hip|CUDA-only|CUDA VMM|cuMem/i.test(r) },
+        { label: 'ROCm bug / runtime limitation',           test: r => /ROCm|is_hip|aiter|compiler|Assertion|not supported|not found/i.test(r) },
+    ];
+
+    function amdExcludeCategory(reason) {
+        const r = reason || '';
+        for (const c of AMD_EXCLUDE_CATEGORIES) {
+            if (c.test(r)) return c.label;
+        }
+        return 'Other';
+    }
+
+    // Renders one always-visible subsection header ("<label> (<count>)") with a
+    // detail table that is collapsed by default and expands on click.
+    function exclCollapsibleGroup(id, label, count, tableHtml) {
+        return `
+            <div class="border rounded mb-2">
+                <button type="button"
+                        class="btn btn-sm w-100 text-start d-flex justify-content-between align-items-center px-2 py-1 fw-semibold collapsed"
+                        data-bs-toggle="collapse" data-bs-target="#${id}" aria-expanded="false" aria-controls="${id}">
+                    <span>${escHtml(label)} <span class="badge bg-secondary ms-1">${count}</span></span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <div id="${id}" class="collapse">
+                    <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">${tableHtml}</div>
+                </div>
+            </div>`;
+    }
+
+    function renderAmdExcluded(rows) {
+        document.getElementById('amd-excluded-count').textContent = rows.length;
+        const root = document.getElementById('amd-excluded-groups');
+
+        // Bucket rows by derived category.
+        const groups = new Map();
+        rows.forEach(r => {
+            const cat = amdExcludeCategory(r.reason);
+            if (!groups.has(cat)) groups.set(cat, []);
+            groups.get(cat).push(r);
+        });
+        // Largest groups first; "Other" always last.
+        const ordered = [...groups.entries()].sort((a, b) => {
+            if (a[0] === 'Other') return 1;
+            if (b[0] === 'Other') return -1;
+            return b[1].length - a[1].length;
+        });
+
+        root.innerHTML = ordered.map(([cat, items], i) => {
+            const body = items.map(r => `
+                <tr>
+                    <td><a href="https://github.com/sgl-project/sglang/blob/main/${escHtml(r.filename)}" target="_blank"><code>${escHtml(r.filename)}</code></a></td>
+                    <td class="text-muted small">${escHtml(r.folder)}</td>
+                    <td class="text-muted small">${escHtml(r.suite)}</td>
+                    <td><small>${escHtml(r.reason)}</small></td>
+                </tr>`).join('');
+            const table = `
+                <table class="table table-sm table-striped mb-0" style="font-size: 0.8rem;">
+                    <thead class="table-warning"><tr><th>File</th><th>Folder</th><th>Suite</th><th>Reason</th></tr></thead>
+                    <tbody>${body}</tbody>
+                </table>`;
+            return exclCollapsibleGroup(`excl-grp-${i}`, cat, items.length, table);
+        }).join('');
+    }
+
+    const GAP_TIER_LABELS = {
+        core:   'Core — every PR + nightly',
+        extra:  'Extra — daily + opt-in (run-ci-extra)',
+        kernel: 'Kernel — JIT / sgl-kernel',
+    };
+
+    function renderAmdGap(rows) {
+        const countEl = document.getElementById('amd-gap-count');
+        const root = document.getElementById('amd-gap-groups');
+        const roadmapCountEl = document.getElementById('roadmap-gap-count');
+        if (roadmapCountEl) {
+            roadmapCountEl.textContent = Array.isArray(rows) ? rows.length : 'n/a';
+        }
+        if (!countEl || !root) return;
+        // A snapshot published before the gap section existed has no rows at
+        // all; say so instead of showing a reassuring zero.
+        if (!Array.isArray(rows)) {
+            countEl.textContent = 'n/a';
+            root.innerHTML = '<div class="text-muted small">This snapshot predates the gap section; it refreshes on the next hourly build.</div>';
+            return;
+        }
+        countEl.textContent = rows.length;
+
+        const groups = new Map();
+        rows.forEach(r => {
+            const tier = r.tier || 'core';
+            if (!groups.has(tier)) groups.set(tier, []);
+            groups.get(tier).push(r);
+        });
+
+        root.innerHTML = ['core', 'extra', 'kernel'].filter(t => groups.has(t)).map((tier, i) => {
+            const items = groups.get(tier).slice().sort((a, b) =>
+                (a.folder + a.filename).localeCompare(b.folder + b.filename));
+            const body = items.map(r => `
+                <tr>
+                    <td><a href="https://github.com/sgl-project/sglang/blob/main/${escHtml(r.filename)}" target="_blank"><code>${escHtml(r.filename)}</code></a></td>
+                    <td class="text-muted small">${escHtml(r.folder)}</td>
+                    <td class="text-muted small">${escHtml(r.suite)}</td>
+                    <td class="small">${r.nightly ? 'nightly' : 'per-commit'}</td>
+                </tr>`).join('');
+            const table = `
+                <table class="table table-sm table-striped mb-0" style="font-size: 0.8rem;">
+                    <thead class="table-danger"><tr><th>File</th><th>Folder</th><th>NVIDIA suite</th><th>Cadence</th></tr></thead>
+                    <tbody>${body}</tbody>
+                </table>`;
+            return exclCollapsibleGroup(`gap-grp-${i}`, GAP_TIER_LABELS[tier] || tier, items.length, table);
+        }).join('');
+    }
+
+    function renderDisabled(rows) {
+        document.getElementById('disabled-count').textContent = rows.length;
+        const tbody = document.getElementById('disabled-rows');
+        tbody.innerHTML = rows.map(r => `
+            <tr>
+                <td><a href="https://github.com/sgl-project/sglang/blob/main/${escHtml(r.path)}" target="_blank"><code>${escHtml(r.path)}</code></a></td>
+                <td class="text-muted small">${escHtml(r.folder)}</td>
+                <td>${backendBadge(r.backend)}</td>
+                <td class="text-muted small">${escHtml(r.suite)}</td>
+                <td><small>${escHtml(r.reason)}</small></td>
+            </tr>`).join('');
+    }
+
+    // ── Coverage detail by day ─────────────────────────────────────
+    // Joins the Coverage Trends series (daily amd/nvidia/coverage numbers)
+    // with the per-PR test changes from Recently Added Tests, so each day
+    // shows its day-over-day delta AND the PRs that moved it. Uses data the
+    // page already fetches (/api/coverage/trends + recent-test-changes), so
+    // it works unchanged on the static GitHub Pages mirror.
+    let coverageTrendData = [];
+    let recentTestsLoaded = false;
+    let coverageByDayOpen = {};  // date -> expanded state, kept across re-renders
+
+    const RT_IMPACT_LABELS = {
+        amd_per_commit: 'AMD per-commit',
+        amd_nightly: 'AMD nightly',
+        cuda_per_commit: 'NV per-commit',
+        cuda_nightly: 'NV nightly',
+        amd_excluded: 'AMD-excluded NV',
+    };
+    function rtPlatBadge(p) {
+        if (p === 'amd') return '<span class="badge bg-danger" style="font-size:0.7rem">AMD</span>';
+        if (p === 'nvidia') return '<span class="badge bg-success" style="font-size:0.7rem">NVIDIA</span>';
+        if (p === 'both') return '<span class="badge bg-danger" style="font-size:0.7rem">AMD</span><span class="badge bg-success ms-1" style="font-size:0.7rem">NVIDIA</span>';
+        return '<span class="badge bg-info text-dark" style="font-size:0.7rem">Shared</span>';
+    }
+    function rtChangeStatusBadge(c) {
+        if (c.status === 'added') return '<span class="badge bg-success">added</span>';
+        if (c.status === 'removed') return '<span class="badge bg-danger">removed</span>';
+        if (c.status === 'renamed_out') return '<span class="badge bg-secondary">moved out</span>';
+        if (c.status === 'renamed_in') return '<span class="badge bg-info text-dark">moved in</span>';
+        if (c.status === 'renamed') return '<span class="badge bg-info text-dark">renamed</span>';
+        if (c.status === 'modified' && c.has_new_registration) return '<span class="badge bg-primary">+registered</span>';
+        if (c.status === 'modified') return '<span class="badge bg-warning text-dark">modified</span>';
+        return `<span class="badge bg-secondary">${escHtml(c.status)}</span>`;
+    }
+    // Render a {amd_per_commit:+1,...} impact object as compact ± badges.
+    function rtImpactBadges(imp) {
+        const parts = [];
+        for (const k of Object.keys(RT_IMPACT_LABELS)) {
+            if (!(k in imp) || imp[k] === 0) continue;
+            const n = imp[k];
+            const sign = n > 0 ? '+' : '';
+            const tone = n > 0 ? 'bg-success' : 'bg-warning text-dark';
+            parts.push(`<span class="badge ${tone} me-1" style="font-size:0.7rem">${sign}${n} ${RT_IMPACT_LABELS[k]}</span>`);
+        }
+        return parts;
+    }
+    function rtAggregateImpact(changes) {
+        const agg = {};
+        changes.forEach(c => {
+            const imp = c.coverage_impact || {};
+            for (const k of Object.keys(imp)) agg[k] = (agg[k] || 0) + imp[k];
+        });
+        return agg;
+    }
+    // Signed number as a coloured delta; up=green, down=red, 0=muted. Pass
+    // {invert:true} for metrics where "down is good" (none here) and
+    // {pct:true} to append '%'.
+    function deltaBadge(n, opts) {
+        opts = opts || {};
+        if (n === null || n === undefined) return '';
+        if (n === 0) return '<span class="text-muted">±0</span>';
+        const sign = n > 0 ? '+' : '';
+        const good = opts.invert ? n < 0 : n > 0;
+        const cls = good ? 'text-success' : 'text-danger';
+        const suffix = opts.pct ? '%' : '';
+        return `<span class="${cls} fw-semibold">(${sign}${n}${suffix})</span>`;
+    }
+
+    function renderCoverageByDay() {
+        const loadingEl = document.getElementById('coverage-by-day-loading');
+        const contentEl = document.getElementById('coverage-by-day-content');
+        if (!contentEl) return;
+        // Need at least one data source; otherwise keep the spinner up.
+        if (!coverageTrendData.length && !recentTestsLoaded) return;
+
+        // Day-over-day deltas from the trend series (ordered by date).
+        const trendSorted = [...coverageTrendData].sort((a, b) => a.date.localeCompare(b.date));
+        const trendInfo = {};
+        trendSorted.forEach((t, i) => {
+            const prev = i > 0 ? trendSorted[i - 1] : null;
+            trendInfo[t.date_formatted] = {
+                amd: t.amd_enabled, cuda: t.cuda_enabled, cov: t.coverage, excl: t.amd_excluded,
+                dAmd: prev ? t.amd_enabled - prev.amd_enabled : null,
+                dCuda: prev ? t.cuda_enabled - prev.cuda_enabled : null,
+                dCov: prev ? Math.round((t.coverage - prev.coverage) * 10) / 10 : null,
+            };
+        });
+
+        // Group each day's changes.
+        const changesByDay = {};
+        (recentTestData || []).forEach(c => {
+            (changesByDay[c.date] = changesByDay[c.date] || []).push(c);
+        });
+
+        // Days to show: union of trend + change dates within the window.
+        const windowDays = recentTestDays || 7;
+        const cutoff = new Date(Date.now() - windowDays * 86400000).toISOString().slice(0, 10);
+        const dayset = new Set();
+        Object.keys(trendInfo).forEach(d => { if (d >= cutoff) dayset.add(d); });
+        Object.keys(changesByDay).forEach(d => { if (d >= cutoff) dayset.add(d); });
+        const days = [...dayset].sort().reverse();
+
+        loadingEl.style.display = 'none';
+        contentEl.style.display = 'block';
+        if (!days.length) {
+            contentEl.innerHTML = '<div class="text-center text-muted py-3">No data for this period yet.</div>';
+            return;
+        }
+
+        let firstWithChanges = null;
+        let html = '<div class="table-responsive"><table class="table table-sm mb-0 align-middle" style="font-size:0.85rem;">';
+        html += `<thead class="table-light sticky-top"><tr>
+            <th style="width:9rem;">Day</th>
+            <th class="text-end">Coverage</th>
+            <th class="text-end">AMD enabled</th>
+            <th class="text-end">NVIDIA enabled</th>
+            <th>Net registered change</th>
+            <th style="width:9rem;">PRs</th>
+        </tr></thead><tbody>`;
+
+        days.forEach(day => {
+            const ti = trendInfo[day];
+            const dayChanges = changesByDay[day] || [];
+            const aggBadges = rtImpactBadges(rtAggregateImpact(dayChanges));
+            const prCount = new Set(dayChanges.map(c => c.pr_number || c.commit_msg)).size;
+            const hasChanges = dayChanges.length > 0;
+            if (hasChanges && firstWithChanges === null) firstWithChanges = day;
+
+            const covCell = ti
+                ? `${ti.cov != null ? ti.cov.toFixed(1) + '%' : '—'} ${deltaBadge(ti.dCov, {pct:true})}`
+                : '<span class="text-muted">—</span>';
+            const amdCell = ti ? `${ti.amd} ${deltaBadge(ti.dAmd)}` : '<span class="text-muted">—</span>';
+            const cudaCell = ti ? `${ti.cuda} ${deltaBadge(ti.dCuda)}` : '<span class="text-muted">—</span>';
+
+            let netCell;
+            if (hasChanges) {
+                netCell = aggBadges.length ? aggBadges.join('') : '<span class="text-muted small">registrations unchanged</span>';
+            } else if (!recentTestsLoaded) {
+                netCell = '<span class="text-muted small">loading…</span>';
+            } else {
+                netCell = '<span class="text-muted small">no registered-test change</span>';
+            }
+
+            const chevron = hasChanges ? '<i class="bi bi-chevron-right cbd-chevron"></i> ' : '';
+            const prCell = hasChanges
+                ? `${prCount} PR${prCount !== 1 ? 's' : ''}, ${dayChanges.length} file${dayChanges.length !== 1 ? 's' : ''}`
+                : '<span class="text-muted">—</span>';
+            const rowAttrs = hasChanges
+                ? ` class="cbd-day" style="cursor:pointer;" data-day="${day}" onclick="toggleCoverageDay('${day}')"`
+                : ' class="text-muted"';
+
+            html += `<tr${rowAttrs}>
+                <td>${chevron}${day}</td>
+                <td class="text-end">${covCell}</td>
+                <td class="text-end">${amdCell}</td>
+                <td class="text-end">${cudaCell}</td>
+                <td>${netCell}</td>
+                <td>${prCell}</td>
+            </tr>`;
+            if (hasChanges) {
+                html += `<tr class="cbd-detail" id="cbd-detail-${day}" style="display:none;"><td colspan="6" class="bg-light">${renderDayDetail(dayChanges)}</td></tr>`;
+            }
+        });
+        html += '</tbody></table></div>';
+        contentEl.innerHTML = html;
+
+        // Default-expand the most recent day that has changes (once).
+        if (firstWithChanges && coverageByDayOpen[firstWithChanges] === undefined) {
+            coverageByDayOpen[firstWithChanges] = true;
+        }
+        Object.keys(coverageByDayOpen).forEach(day => {
+            if (coverageByDayOpen[day]) setCoverageDayOpen(day, true);
+        });
+    }
+
+    function renderDayDetail(changes) {
+        // Group by PR (mirrors the Recently Added Tests grouping).
+        const prGroups = {};
+        changes.forEach(c => {
+            const key = c.pr_number ? `PR #${c.pr_number}` : c.commit_msg;
+            if (!prGroups[key]) prGroups[key] = {
+                pr_number: c.pr_number, pr_url: c.pr_url, author: c.author,
+                commit_msg: c.commit_msg, files: []
+            };
+            prGroups[key].files.push(c);
+        });
+        let html = '<div class="p-2"><table class="table table-sm mb-0" style="font-size:0.82rem;">';
+        Object.values(prGroups).forEach(pr => {
+            const prLink = pr.pr_url ? `<a href="${pr.pr_url}" target="_blank" class="fw-bold">#${pr.pr_number}</a>` : '';
+            const title = escHtml((pr.commit_msg || '').replace(/#\d+\)?$/, '').replace(/\($/, '').trim());
+            const author = pr.author ? `<span class="text-muted ms-2">by <a href="https://github.com/${escHtml(pr.author)}" target="_blank">${escHtml(pr.author)}</a></span>` : '';
+            const prImpact = rtImpactBadges(rtAggregateImpact(pr.files));
+            const prImpactStr = prImpact.length ? `<span class="ms-2">${prImpact.join('')}</span>` : '';
+            html += `<tr class="table-light"><td colspan="3">${prLink} <span class="ms-1">${title}</span>${author}${prImpactStr}</td></tr>`;
+            pr.files.forEach(c => {
+                const shortFile = escHtml((c.file || '').replace('test/registered/', ''));
+                const blobRef = (c.status === 'renamed_out' && c.parent_sha) ? c.parent_sha : 'main';
+                const fileImpact = rtImpactBadges(c.coverage_impact || {});
+                html += `<tr>
+                    <td class="ps-4"><a href="https://github.com/sgl-project/sglang/blob/${blobRef}/${escHtml(c.file)}" target="_blank">${shortFile}</a></td>
+                    <td>${rtChangeStatusBadge(c)} ${rtPlatBadge(c.platform)}</td>
+                    <td>${fileImpact.length ? fileImpact.join('') : '<span class="text-muted small">no count change</span>'}</td>
+                </tr>`;
+            });
+        });
+        html += '</table></div>';
+        return html;
+    }
+
+    function setCoverageDayOpen(day, open) {
+        const detail = document.getElementById('cbd-detail-' + day);
+        if (!detail) return;
+        detail.style.display = open ? '' : 'none';
+        const row = document.querySelector(`.cbd-day[data-day="${day}"]`);
+        if (row) {
+            const chev = row.querySelector('.cbd-chevron');
+            if (chev) chev.className = 'bi cbd-chevron ' + (open ? 'bi-chevron-down' : 'bi-chevron-right');
+        }
+        coverageByDayOpen[day] = open;
+    }
+    function toggleCoverageDay(day) {
+        setCoverageDayOpen(day, !coverageByDayOpen[day]);
+    }
+    function syncCbdButtons(days) {
+        const b7 = document.getElementById('cbd-btn-7');
+        const b30 = document.getElementById('cbd-btn-30');
+        if (b7) b7.className = days === 7 ? 'btn btn-light active' : 'btn btn-outline-light';
+        if (b30) b30.className = days === 30 ? 'btn btn-light active' : 'btn btn-outline-light';
+    }
+
+    // ── Coverage Trends ────────────────────────────────────────────
+    // Mirrors the /upstream-ci page's Coverage Trends card. Backed by
+    // /api/coverage/trends?days=N which reads the rolling JSON file
+    // written daily by update_coverage.update_coverage_overview.
+    let coverageTrendsChart = null;
+    function loadCoverageTrends(days = 30) {
+        const btn30 = document.getElementById('cov-btn-30-days');
+        const btn90 = document.getElementById('cov-btn-90-days');
+        if (days === 30) {
+            btn30.className = 'btn btn-light active';
+            btn90.className = 'btn btn-outline-light';
+        } else {
+            btn30.className = 'btn btn-outline-light';
+            btn90.className = 'btn btn-light active';
+        }
+        document.getElementById('coverage-trends-days-label').textContent = `Last ${days} Days`;
+
+        document.getElementById('coverage-trends-loading').style.display = 'block';
+        document.getElementById('coverage-trends-chart-wrap').style.display = 'none';
+        document.getElementById('coverage-trends-empty').style.display = 'none';
+
+        fetch(`/api/coverage/trends?days=${days}`)
+            .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+            .then(data => {
+                const trends = data.trends || [];
+                coverageTrendData = trends;
+                renderCoverageByDay();
+                document.getElementById('coverage-trends-loading').style.display = 'none';
+                if (trends.length < 2) {
+                    document.getElementById('coverage-trends-empty').style.display = 'block';
+                    if (trends.length === 1) {
+                        // Single point — still draw it so today's value is visible.
+                        document.getElementById('coverage-trends-chart-wrap').style.display = 'block';
+                        renderCoverageTrendsChart(trends);
+                    }
+                    return;
+                }
+                document.getElementById('coverage-trends-chart-wrap').style.display = 'block';
+                renderCoverageTrendsChart(trends);
+            })
+            .catch(() => {
+                document.getElementById('coverage-trends-loading').style.display = 'none';
+                document.getElementById('coverage-trends-empty').style.display = 'block';
+            });
+    }
+
+    function renderCoverageTrendsChart(trends) {
+        const ctx = document.getElementById('coverageTrendsChart').getContext('2d');
+        if (coverageTrendsChart) coverageTrendsChart.destroy();
+
+        function ymdToDisplay(d) {
+            return (d && d.length === 8) ? `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}` : (d || '');
+        }
+        const labels = trends.map(t => ymdToDisplay(t.date));
+        const coverageData = trends.map(t => t.coverage || 0);
+        const amdData = trends.map(t => t.amd_enabled || 0);
+        const cudaData = trends.map(t => t.cuda_enabled || 0);
+        const exclData = trends.map(t => t.amd_excluded || 0);
+        // Points recorded before the gap was tracked have no value; plot null
+        // (a break in the line) rather than 0, which would read as "no gap".
+        const gapData = trends.map(t => t.amd_gap == null ? null : t.amd_gap);
+
+        // Day-over-day deltas, surfaced inline in the tooltip
+        // ("AMD: 217 (+4)") - same UX as the /upstream-ci trends.
+        function deltas(series) {
+            return series.map((v, i) => i === 0 ? null : v - series[i - 1]);
+        }
+        const amdDelta  = deltas(amdData);
+        const cudaDelta = deltas(cudaData);
+
+        coverageTrendsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'AMD vs CUDA Coverage (%)',
+                        data: coverageData,
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        fill: false, tension: 0.3, yAxisID: 'y', borderWidth: 2,
+                    },
+                    {
+                        label: 'AMD Enabled',
+                        data: amdData,
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                        fill: false, tension: 0.3, yAxisID: 'y1', borderWidth: 2,
+                    },
+                    {
+                        label: 'NVIDIA Enabled (after exclusions)',
+                        data: cudaData,
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                        fill: false, tension: 0.3, yAxisID: 'y1', borderWidth: 2,
+                    },
+                    {
+                        label: 'AMD-Excluded NVIDIA',
+                        data: exclData,
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.15)',
+                        borderDash: [4, 4],
+                        fill: false, tension: 0.3, yAxisID: 'y1', borderWidth: 1.5,
+                    },
+                    {
+                        label: 'Not Run on AMD',
+                        data: gapData,
+                        borderColor: 'rgba(108, 117, 125, 1)',
+                        backgroundColor: 'rgba(108, 117, 125, 0.15)',
+                        borderDash: [2, 3],
+                        spanGaps: false,
+                        fill: false, tension: 0.3, yAxisID: 'y1', borderWidth: 1.5,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                // Click a point to jump to that day's detail below and expand it.
+                onClick: (evt, elements) => {
+                    if (!elements || !elements.length) return;
+                    const day = labels[elements[0].index];
+                    const row = day && document.querySelector(`.cbd-day[data-day="${day}"]`);
+                    if (row) {
+                        setCoverageDayOpen(day, true);
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const v = context.parsed.y;
+                                if (v === null || v === undefined) return null;
+                                if (context.dataset.yAxisID === 'y') {
+                                    return `${label}: ${v.toFixed(1)}%`;
+                                }
+                                const idx = context.dataIndex;
+                                let delta = null;
+                                if (label === 'AMD Enabled') delta = amdDelta[idx];
+                                else if (label === 'NVIDIA Enabled (after exclusions)') delta = cudaDelta[idx];
+                                if (delta === null || delta === undefined || delta === 0) {
+                                    return `${label}: ${v}`;
+                                }
+                                const sign = delta > 0 ? '+' : '';
+                                return `${label}: ${v} (${sign}${delta})`;
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    y:  {
+                        type: 'linear', display: true, position: 'left',
+                        beginAtZero: true,
+                        // Coverage divides totals, so it can exceed 100%; a hard
+                        // max would clip the line right where that happens.
+                        max: Math.max(100, Math.ceil(Math.max(0, ...coverageData) / 10) * 10),
+                        title: { display: true, text: 'Coverage (%)' },
+                    },
+                    y1: {
+                        type: 'linear', display: true, position: 'right',
+                        beginAtZero: true,
+                        title: { display: true, text: 'Test Count' },
+                        grid: { drawOnChartArea: false },
+                    },
+                },
+            },
+        });
+    }
+
+    // ── Recently Added Tests (moved from /upstream-ci) ─────────────
+    let recentTestData = [];
+    let recentTestDays = 7;
+    // Bump the v-suffix when the row schema changes (or the cache logic
+    // changes) so old cached entries get refetched on first load.
+    const RT_CACHE_KEY = 'recent_tests_v4_';
+    const RT_TODAY = new Date().toISOString().slice(0, 10);
+
+    function loadRecentTests(days) {
+        recentTestDays = days;
+        document.querySelectorAll('[data-test-days]').forEach(b =>
+            b.classList.toggle('active', parseInt(b.dataset.testDays) === days));
+        // The "Coverage detail by day" card shares this window.
+        syncCbdButtons(days);
+        renderCoverageByDay();
+
+        // Try cache first
+        try {
+            const raw = localStorage.getItem(RT_CACHE_KEY + days);
+            if (raw) {
+                const cached = JSON.parse(raw);
+                if (cached._date === RT_TODAY && cached.changes && cached.changes.length > 0) {
+                    recentTestData = cached.changes;
+                    document.getElementById('recent-tests-loading').style.display = 'none';
+                    document.getElementById('recent-tests-content').style.display = 'block';
+                    renderRecentTests();
+                    return;
+                }
+                // Stale cache: paint it immediately for responsiveness, then
+                // refetch the full N-day window and replace. (The old code only
+                // merged today's `days=1` delta, which never dropped
+                // out-of-window rows and — since the static site has no
+                // days-1.json — silently failed, pinning months-old data.)
+                if (cached.changes && cached.changes.length > 0) {
+                    recentTestData = cached.changes;
+                    document.getElementById('recent-tests-loading').style.display = 'none';
+                    document.getElementById('recent-tests-content').style.display = 'block';
+                    renderRecentTests();
+                    fetch(`/api/upstream-ci/recent-test-changes?days=${days}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            recentTestData = data.changes || [];
+                            try { localStorage.setItem(RT_CACHE_KEY + days, JSON.stringify({ _date: RT_TODAY, changes: recentTestData })); } catch {}
+                            renderRecentTests();
+                        })
+                        .catch(() => {});
+                    return;
+                }
+            }
+        } catch {}
+
+        // No cache — full fetch
+        document.getElementById('recent-tests-loading').style.display = 'block';
+        document.getElementById('recent-tests-content').style.display = 'none';
+
+        fetch(`/api/upstream-ci/recent-test-changes?days=${days}`)
+            .then(r => r.json())
+            .then(data => {
+                recentTestData = data.changes || [];
+                try { localStorage.setItem(RT_CACHE_KEY + days, JSON.stringify({ _date: RT_TODAY, changes: recentTestData })); } catch {}
+                document.getElementById('recent-tests-loading').style.display = 'none';
+                document.getElementById('recent-tests-content').style.display = 'block';
+                renderRecentTests();
+            })
+            .catch(() => {
+                document.getElementById('recent-tests-loading').innerHTML =
+                    '<small class="text-muted">Failed to load recent test changes.</small>';
+            });
+    }
+
+    function renderRecentTests() {
+        // Recent-test data is loaded; refresh the per-day coverage detail too.
+        recentTestsLoaded = true;
+        renderCoverageByDay();
+        const showModified = document.getElementById('showModifiedToggle').checked;
+        const changes = showModified
+            ? recentTestData
+            : recentTestData.filter(c => c.status === 'added' || c.status === 'removed' || c.has_new_registration);
+
+        document.getElementById('recent-test-count').textContent = changes.length + ' files';
+
+        if (!changes.length) {
+            document.getElementById('recent-tests-content').innerHTML =
+                '<div class="text-center text-muted py-3">No matching test file changes.</div>';
+            return;
+        }
+
+        const prGroups = {};
+        changes.forEach(c => {
+            const key = c.pr_number ? `PR #${c.pr_number}` : c.commit_msg;
+            if (!prGroups[key]) prGroups[key] = {
+                pr_number: c.pr_number, pr_url: c.pr_url, date: c.date,
+                author: c.author, commit_msg: c.commit_msg, files: []
+            };
+            prGroups[key].files.push(c);
+            if (c.date > prGroups[key].date) prGroups[key].date = c.date;
+        });
+
+        const sorted = Object.values(prGroups).sort((a, b) => b.date.localeCompare(a.date));
+
+        function platBadge(p) {
+            if (p === 'amd') return '<span class="badge bg-danger" style="font-size:0.7rem">AMD</span>';
+            if (p === 'nvidia') return '<span class="badge bg-success" style="font-size:0.7rem">NVIDIA</span>';
+            if (p === 'both') return '<span class="badge bg-danger" style="font-size:0.7rem">AMD</span><span class="badge bg-success ms-1" style="font-size:0.7rem">NVIDIA</span>';
+            return '<span class="badge bg-info text-dark" style="font-size:0.7rem">Shared</span>';
+        }
+        function statusBadge(c) {
+            if (c.status === 'added') return '<span class="badge bg-success">added</span>';
+            if (c.status === 'removed') return '<span class="badge bg-danger">removed</span>';
+            // Renames in/out of test/registered/ are functionally additions or
+            // removals of dashboard counts even though the file isn't gone
+            // upstream — surface that explicitly so reviewers don't read a
+            // big "−25" delta as a deletion.
+            if (c.status === 'renamed_out') {
+                const dest = c.current_path
+                    ? `<small class="text-muted ms-1">→ ${c.current_path.replace(/^test\//, 'test/')}</small>`
+                    : '';
+                return `<span class="badge bg-secondary">moved out</span>${dest}`;
+            }
+            if (c.status === 'renamed_in') {
+                const src = c.previous_filename
+                    ? `<small class="text-muted ms-1">from ${c.previous_filename.replace(/^test\//, 'test/')}</small>`
+                    : '';
+                return `<span class="badge bg-info text-dark">moved in</span>${src}`;
+            }
+            if (c.status === 'renamed') {
+                const src = c.previous_filename
+                    ? `<small class="text-muted ms-1">from ${c.previous_filename.replace(/^test\/registered\//, '')}</small>`
+                    : '';
+                return `<span class="badge bg-info text-dark">renamed</span>${src}`;
+            }
+            if (c.status === 'modified' && c.has_new_registration) return '<span class="badge bg-primary">+registered</span>';
+            if (c.status === 'modified') return '<span class="badge bg-warning text-dark">modified</span>';
+            return `<span class="badge bg-secondary">${c.status}</span>`;
+        }
+        // Render a compact ±delta of dashboard counts changed by the
+        // commit. ``coverage_impact`` is {amd_per_commit, amd_nightly,
+        // cuda_per_commit, cuda_nightly, amd_excluded} with non-zero
+        // entries only.
+        function coverageImpactCell(c) {
+            const imp = c.coverage_impact || {};
+            const labels = {
+                amd_per_commit: { txt: 'AMD per-commit', cls: 'bg-danger' },
+                amd_nightly:    { txt: 'AMD nightly',    cls: 'bg-danger' },
+                cuda_per_commit:{ txt: 'NV per-commit',  cls: 'bg-success' },
+                cuda_nightly:   { txt: 'NV nightly',     cls: 'bg-success' },
+                amd_excluded:   { txt: 'AMD-excluded NV',cls: 'bg-secondary' },
+            };
+            const parts = [];
+            for (const k of Object.keys(labels)) {
+                if (!(k in imp)) continue;
+                const n = imp[k];
+                if (n === 0) continue;
+                const sign = n > 0 ? '+' : '';
+                const tone = n > 0 ? labels[k].cls : 'bg-warning text-dark';
+                parts.push(`<span class="badge ${tone} me-1" style="font-size:0.7rem" title="${labels[k].txt}">${sign}${n} ${labels[k].txt}</span>`);
+            }
+            if (!parts.length) return '<span class="text-muted small">no count change</span>';
+            return parts.join('');
+        }
+        // Render the "Test Category" cell linking the file's CI bucket
+        // (Per-PR/Commit or Nightly/Periodic) and its specific Detailed Test
+        // Breakdown row (stage-test-1-gpu, ..., nightly-unique-files).
+        function categoryBadge(c) {
+            const bucket = c.category_bucket;
+            const cat = c.test_category;
+            if (!bucket && !cat) {
+                return '<span class="text-muted small">—</span>';
+            }
+            const bucketCls = bucket === 'Nightly/Periodic'
+                ? 'bg-info text-dark'
+                : 'bg-primary';
+            const bucketLabel = bucket || 'Unknown';
+            const catLabel = cat
+                ? `<small class="text-muted ms-1">${cat}</small>`
+                : '';
+            return `<span class="badge ${bucketCls}" style="font-size:0.7rem">${bucketLabel}</span>${catLabel}`;
+        }
+
+        let html = '<div class="table-responsive" style="max-height:500px;"><table class="table table-sm mb-0" style="font-size:0.85rem;">';
+        html += `<thead class="table-light sticky-top">
+            <tr>
+                <th>File</th>
+                <th>Status</th>
+                <th>Platform</th>
+                <th>Test Category</th>
+                <th title="Per-file ± delta this commit applied to dashboard counts.">Coverage Impact</th>
+            </tr>
+        </thead>`;
+        sorted.forEach(pr => {
+            const prLink = pr.pr_url
+                ? `<a href="${pr.pr_url}" target="_blank" class="fw-bold">#${pr.pr_number}</a>`
+                : '';
+            const title = pr.commit_msg.replace(/#\d+\)?$/, '').replace(/\($/,'').trim();
+            const authorLink = `<a href="https://github.com/${pr.author}" target="_blank">${pr.author}</a>`;
+
+            // Aggregate per-PR coverage impact so the group header shows
+            // the net effect of the whole PR at a glance.
+            const prImpact = {};
+            pr.files.forEach(c => {
+                const imp = c.coverage_impact || {};
+                for (const k of Object.keys(imp)) {
+                    prImpact[k] = (prImpact[k] || 0) + imp[k];
+                }
+            });
+            const prImpactStr = Object.entries(prImpact)
+                .filter(([, n]) => n !== 0)
+                .map(([k, n]) => {
+                    const sign = n > 0 ? '+' : '';
+                    const label = ({
+                        amd_per_commit: 'AMD per-commit',
+                        amd_nightly: 'AMD nightly',
+                        cuda_per_commit: 'NV per-commit',
+                        cuda_nightly: 'NV nightly',
+                        amd_excluded: 'AMD-excluded NV',
+                    }[k]) || k;
+                    return `${sign}${n} ${label}`;
+                }).join(', ');
+            const prImpactBadge = prImpactStr
+                ? `<span class="ms-2 small text-muted" title="Net change to dashboard counts">net: ${prImpactStr}</span>`
+                : '';
+
+            html += `<tr class="table-light">
+                <td colspan="5">
+                    <span class="text-muted">${pr.date}</span>
+                    ${prLink}
+                    <span class="ms-1">${title}</span>
+                    <span class="text-muted ms-2">by ${authorLink}</span>
+                    <span class="badge bg-secondary ms-1">${pr.files.length} file${pr.files.length > 1 ? 's' : ''}</span>
+                    ${prImpactBadge}
+                </td>
+            </tr>`;
+
+            pr.files.forEach(c => {
+                // Renamed-out rows reference the OLD path under
+                // test/registered/; link to the parent commit's blob since
+                // main no longer has that file.
+                const shortFile = c.file.replace('test/registered/', '');
+                const blobRef = c.status === 'renamed_out' && c.parent_sha
+                    ? c.parent_sha
+                    : 'main';
+                html += `<tr>
+                    <td class="ps-4"><small><a href="https://github.com/sgl-project/sglang/blob/${blobRef}/${c.file}" target="_blank">${shortFile}</a></small></td>
+                    <td>${statusBadge(c)}</td>
+                    <td>${platBadge(c.platform)}</td>
+                    <td>${categoryBadge(c)}</td>
+                    <td>${coverageImpactCell(c)}</td>
+                </tr>`;
+            });
+        });
+        html += '</table></div>';
+        document.getElementById('recent-tests-content').innerHTML = html;
+    }
+
+    loadRecentTests(7);
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

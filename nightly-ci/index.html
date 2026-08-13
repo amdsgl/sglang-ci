@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nightly CI Health - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .status-badge { text-transform: capitalize; }
+    .status-badge.passed, .status-badge.pass, .status-badge.success {
+        background-color: #d1e7dd; color: #0f5132;
+    }
+    .status-badge.failed, .status-badge.fail, .status-badge.failure {
+        background-color: #f8d7da; color: #842029;
+    }
+    .status-badge.skipped {
+        background-color: #e2e3e5; color: #41464b;
+    }
+    .status-badge.cancelled {
+        background-color: #fff3cd; color: #664d03;
+    }
+    .status-badge.running, .status-badge.in_progress, .status-badge.queued {
+        background-color: #cfe2ff; color: #084298;
+    }
+    .status-badge.scheduled {
+        background-color: #ede7f6; color: #4527a0;
+    }
+    /* "11h 24m" plus its still-running hourglass has to stay on one line —
+       wrapped, the icon reads as a second row of the table. */
+    .duration-cell { white-space: nowrap; }
+    .run-row { cursor: pointer; }
+    .run-row:hover { background-color: rgba(var(--bs-primary-rgb), 0.04); }
+    .run-row.selected { background-color: rgba(var(--bs-primary-rgb), 0.08); }
+    .chart-container { position: relative; height: 180px; }
+    .job-row-fail { background-color: #fff5f5; }
+    .wf-section-header {
+        background: #f8f9fa;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    .table-responsive { max-height: 550px; overflow-y: auto; }
+
+    /* CI Monitor daily report */
+    /* A day's report is long enough to push the job matrix off-screen, so it
+       scrolls inside its own card instead. */
+    .report-body { font-size: 0.85rem; max-height: 65vh; overflow-y: auto; }
+    .report-body code { font-size: 0.95em; color: #6f42c1; background: #f6f4fb; padding: 0 2px; }
+    .report-cluster { border: 1px solid #dee2e6; border-left-width: 4px; border-radius: 4px; margin-bottom: 6px; }
+    .report-cluster > summary { cursor: pointer; padding: 6px 10px; list-style-position: inside; }
+    .report-cluster > summary:hover { background-color: rgba(var(--bs-primary-rgb), 0.04); }
+    .report-cluster > div { padding: 2px 10px 8px 26px; }
+    .report-cluster.fix-none { border-left-color: #dc3545; }
+    .report-cluster.fix-in_flight { border-left-color: #ffc107; }
+    .report-cluster.fix-merged { border-left-color: #198754; }
+    .report-cluster.fix- { border-left-color: #adb5bd; }
+    .report-detail { margin-bottom: 3px; }
+    .report-table { font-size: 0.78rem; }
+    .report-table td, .report-table th { vertical-align: top; }
+    .report-date-badge { text-decoration: none; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-6"><i class="bi bi-moon-stars"></i> Nightly CI Health</h1>
+                <p class="text-muted mb-0">Upstream nightly test pass/fail tracking — scheduled runs on <code>main</code></p>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <small class="text-muted" id="cache-status"></small>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadData(true)" title="Refresh from GitHub">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-secondary active" data-days="7" onclick="changeDays(7)">7d</button>
+                    <button class="btn btn-outline-secondary" data-days="14" onclick="changeDays(14)">14d</button>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-test-amd.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> ROCm 7.0
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-test-amd-rocm720.yml" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> ROCm 7.2
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/amd-aiter-scout.yml" target="_blank" class="btn btn-outline-info">
+                        <i class="bi bi-github"></i> AITER Scout
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/pr-test-amd-rocm720.yml" target="_blank" class="btn btn-outline-info">
+                        <i class="bi bi-github"></i> PR ROCm 7.2
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/pr-test-amd.yml?query=event%3Aschedule" target="_blank" class="btn btn-outline-info">
+                        <i class="bi bi-github"></i> PR ROCm 7.0
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-amd-mi355x-disagg.yml?query=branch%3Amain+event%3Aschedule" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> MI355X Disagg
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning d-flex align-items-center d-none" id="apiDegradedAlert" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <div>
+        <strong>GitHub Actions API is degraded.</strong>
+        Per-job details couldn't be refreshed from GitHub, so job-level results are served from the last cached snapshot and may be stale (or missing where no cache exists). Run-level status is still live. Check <a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="alert-link">GitHub Status</a>. This clears automatically once GitHub's API recovers.
+    </div>
+</div>
+
+<div class="alert alert-info d-none" id="loadingIndicator">Loading nightly CI data...</div>
+
+<!-- Loading -->
+<div id="main-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Fetching nightly CI data from GitHub (including per-job details)...</p>
+</div>
+<div id="main-error" style="display: none;"></div>
+
+<!-- Dashboard content -->
+<div id="dashboard" style="display: none;">
+
+    <div class="row g-4 mb-4">
+        <!-- Left: Daily Run Overview + Chart -->
+        <div class="col-lg-6">
+            <!-- Daily Run Overview -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="mb-0">Daily Run Overview</h5>
+                        <span class="badge bg-secondary" id="selectedRunLabel">—</span>
+                    </div>
+                    <!-- Selected Run Stats -->
+                    <div id="selectedRunSummary" class="row g-2 text-center"></div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 550px;">
+                        <table class="table table-hover table-sm mb-0" style="font-size: 0.85rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Workflow</th>
+                                    <th class="text-center">Passed</th>
+                                    <th class="text-center">Failed</th>
+                                    <th class="text-center">Skipped/Cancelled</th>
+                                    <th class="text-center">Pass Rate</th>
+                                    <th class="text-center">Duration</th>
+                                    <th class="text-center">Run</th>
+                                </tr>
+                            </thead>
+                            <tbody id="daily-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pass Rate / Duration Chart -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
+                    <h6 class="mb-0" id="trendTitle">Pass Rate Trend</h6>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-secondary active" data-metric="pass_rate" onclick="changeTrendMetric('pass_rate')">Pass Rate</button>
+                            <button class="btn btn-outline-secondary" data-metric="duration" onclick="changeTrendMetric('duration')">Duration</button>
+                        </div>
+                        <span class="text-muted small"><i class="bi bi-calendar3"></i> Last <span id="rangeLabel">14</span> days</span>
+                    </div>
+                </div>
+                <div class="card-body py-2">
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Selected Run Job Details -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Test Results</h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="btn btn-outline-danger btn-sm d-none" id="analyzeAllBtn" onclick="analyzeAllFailures()" title="Cross-job failure analysis">
+                            <i class="bi bi-cpu"></i> Analyze All Failures
+                        </button>
+                        <span class="badge bg-light text-dark" id="selectedJobsLabel">Select a run</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="cross-analysis" class="alert alert-secondary m-2 small d-none" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
+                    <div id="jobs-placeholder" class="text-center text-muted py-4">
+                        <i class="bi bi-arrow-left-circle" style="font-size: 2rem;"></i>
+                        <p class="mt-2">Click a row in Daily Run Overview to see job details</p>
+                    </div>
+                    <div id="jobs-content" style="display: none;">
+                        <div class="table-responsive" style="max-height: 700px;">
+                            <table class="table table-sm table-hover mb-0" style="font-size: 0.82rem;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Job Name</th>
+                                        <th class="text-center" style="width: 90px;">Status</th>
+                                        <th class="text-center" style="width: 90px;">Duration</th>
+                                        <th class="text-center" style="width: 40px;">Log</th>
+                                        <th style="width: 220px;">AI Analysis</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="job-rows"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CI Monitor daily report (the triage narrative behind the numbers) -->
+    <div class="card mb-4 d-none" id="reportCard">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h5 class="mb-0"><i class="bi bi-journal-text"></i> CI Monitor Daily Report</h5>
+                <select class="form-select form-select-sm" id="reportDate" style="width: auto;" onchange="showDailyReport(this.value)"></select>
+                <span id="reportStatus"></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted" id="reportSnapshot"></small>
+                <a class="btn btn-outline-secondary btn-sm" id="reportIssueLink" href="#" target="_blank" rel="noopener">
+                    <i class="bi bi-github"></i> <span id="reportIssueLabel">issue</span>
+                </a>
+            </div>
+        </div>
+        <div class="card-body report-body" id="reportBody"></div>
+    </div>
+
+    <!-- Full Job Matrix (all days x all jobs) -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-table"></i> Job Status Matrix</h5>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="showAllJobsToggle" checked>
+                    <label class="form-check-label small" for="showAllJobsToggle">Show passing jobs</label>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-secondary btn-sm active" data-wf-filter="all" onclick="filterMatrix('all')">All</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-wf-filter="rocm700" onclick="filterMatrix('rocm700')">ROCm 7.0</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-wf-filter="rocm720" onclick="filterMatrix('rocm720')">ROCm 7.2</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-wf-filter="aiter_scout" onclick="filterMatrix('aiter_scout')">AITER Scout</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-wf-filter="pr_rocm720" onclick="filterMatrix('pr_rocm720')">PR ROCm 7.2 (12h)</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-wf-filter="pr_rocm700" onclick="filterMatrix('pr_rocm700')">PR ROCm 7.0 (daily)</button>
+                    <button class="btn btn-outline-secondary btn-sm" data-wf-filter="mi355x_disagg" onclick="filterMatrix('mi355x_disagg')">MI355X Disagg</button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 600px; overflow: auto;">
+                <table class="table table-sm table-striped mb-0 small" id="matrixTable">
+                    <thead class="table-light" id="matrix-head"></thead>
+                    <tbody id="matrix-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    let currentDays = 7;
+    let cachedData = null;
+    let trendChart = null;
+    let trendMetric = 'pass_rate';
+    let matrixFilter = 'all';
+    let selectedRunId = null;
+    const CACHE_TTL_MS = 10 * 60 * 1000;
+
+    // How much longer than the window's typical run counts as worth flagging.
+    // An AMD nightly's total duration is dominated by how long its jobs waited
+    // for a runner, so the same suite ranges from under two hours to most of a
+    // day; only a clear multiple of the median says anything.
+    const SLOW_RUN_FACTOR = 1.5;
+
+    function wfLabel(wfKey) {
+        if (cachedData && cachedData.workflows && cachedData.workflows[wfKey]) {
+            return cachedData.workflows[wfKey];
+        }
+        const fallback = { rocm700: 'ROCm 7.0', rocm720: 'ROCm 7.2', aiter_scout: 'AITER Scout', pr_rocm720: 'PR ROCm 7.2 (12h)', pr_rocm700: 'PR ROCm 7.0 (daily)', mi355x_disagg: 'MI355X Disagg' };
+        return fallback[wfKey] || wfKey;
+    }
+
+    // The CI monitor bot's daily report issue — the written triage behind a
+    // day's numbers. Days the bot skipped have no entry, so this renders
+    // nothing rather than a dead link. Clicking opens the report in the panel
+    // below; the panel header links out to the issue itself.
+    function dailyReportLink(date) {
+        const report = (cachedData && cachedData.daily_reports || {})[date];
+        if (!report) return '';
+        const bits = [`CI Monitor daily report for ${date} (issue #${report.number})`];
+        if (report.status) bits.push(report.status.toUpperCase());
+        if (report.active_clusters) bits.push(`${report.active_clusters} active clusters`);
+        if (report.new_clusters) bits.push(`${report.new_clusters} new`);
+        return `<a href="#reportCard" class="report-date-badge ${reportStatusClass(report.status)}"
+            onclick="event.stopPropagation(); showDailyReport('${date}', true); return false;"
+            title="${bits.join(' · ')}"><i class="bi bi-journal-text"></i></a>`;
+    }
+
+    function reportStatusClass(status) {
+        return { red: 'text-danger', amber: 'text-warning', yellow: 'text-warning', green: 'text-success' }[status] || 'text-secondary';
+    }
+
+    function wfCron(wfKey) {
+        if (cachedData && cachedData.schedules && cachedData.schedules[wfKey]) {
+            return cachedData.schedules[wfKey];
+        }
+        return null;
+    }
+
+    // Weekdays a workflow is due on, in cron numbering (Sun=0 .. Sat=6), or
+    // null for "every day" / unknown. A weekly workflow like AITER Scout has
+    // no run to report six days out of seven, and without this the page can't
+    // tell that apart from a run that should have happened and didn't.
+    function wfScheduleDays(wfKey) {
+        const days = (cachedData && cachedData.schedule_days || {})[wfKey];
+        return Array.isArray(days) && days.length ? days : null;
+    }
+
+    function isScheduledOn(wfKey, dateStr) {
+        const days = wfScheduleDays(wfKey);
+        if (!days) return true;
+        return days.includes(new Date(dateStr + 'T00:00:00').getDay());
+    }
+
+    // The schedule above is the one upstream runs *today*. Days before it took
+    // effect were governed by whatever cron came before, so a runless day back
+    // then isn't evidence of a missed run — AITER Scout only moved to Saturdays
+    // on 2026-07-28, and every earlier Saturday in the window would otherwise
+    // be flagged.
+    function scheduleAppliesOn(wfKey, dateStr) {
+        const since = (cachedData && cachedData.schedule_since || {})[wfKey];
+        return !since || dateStr >= since;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadData(false);
+        document.getElementById('showAllJobsToggle').addEventListener('change', () => {
+            if (cachedData) renderMatrix(cachedData.health);
+        });
+    });
+
+    function changeDays(d) {
+        currentDays = d;
+        document.getElementById('rangeLabel').textContent = d;
+        document.querySelectorAll('[data-days]').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.days) === d);
+        });
+        loadData(false);
+    }
+
+    function filterMatrix(wf) {
+        matrixFilter = wf;
+        document.querySelectorAll('[data-wf-filter]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.wfFilter === wf);
+        });
+        if (cachedData) renderMatrix(cachedData.health);
+    }
+
+    // v5: the ROCm 7.0 PR series is keyed `pr_rocm700`, not `pr_amd_mi325`,
+    // and a cached payload under the old key leaves its matrix tab filtering
+    // on a key the data doesn't have. (v4 added the `started_at` /
+    // `completed_at` the duration column measures between; v3 added the daily
+    // report verdict and cluster counts, without which the report picker is
+    // unlabelled; v2 added `schedule_days`, without which a weekly workflow's
+    // off days read as missed runs.)
+    function getCacheKey() { return `nightly_ci_v5_${currentDays}`; }
+
+    function loadFromCache() {
+        try {
+            const raw = localStorage.getItem(getCacheKey());
+            if (!raw) return null;
+            const cached = JSON.parse(raw);
+            if (Date.now() - cached._ts > CACHE_TTL_MS) return null;
+            return cached;
+        } catch { return null; }
+    }
+
+    function saveToCache(data) {
+        try {
+            data._ts = Date.now();
+            localStorage.setItem(getCacheKey(), JSON.stringify(data));
+        } catch {}
+    }
+
+    function updateCacheStatus(fromCache, ts) {
+        const el = document.getElementById('cache-status');
+        if (fromCache && ts) {
+            const ago = Math.round((Date.now() - ts) / 1000);
+            const agoStr = ago < 60 ? `${ago}s ago` : `${Math.round(ago / 60)}m ago`;
+            el.innerHTML = `<i class="bi bi-database"></i> cached ${agoStr}`;
+        } else {
+            el.innerHTML = `<i class="bi bi-cloud-check"></i> live`;
+        }
+    }
+
+    function loadData(forceRefresh) {
+        if (forceRefresh) {
+            // The bot re-edits the current day's issue every 30 minutes, so a
+            // manual refresh has to drop the reports it already read too.
+            for (const date of Object.keys(reportCache)) delete reportCache[date];
+        }
+        if (!forceRefresh) {
+            const cached = loadFromCache();
+            if (cached) {
+                cachedData = cached;
+                document.getElementById('main-loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                renderAll(cached);
+                updateCacheStatus(true, cached._ts);
+                return;
+            }
+        }
+
+        document.getElementById('main-loading').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('main-error').style.display = 'none';
+        document.getElementById('cache-status').innerHTML = '';
+
+        fetch(`/api/nightly-ci/status?days=${currentDays}`)
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                cachedData = data;
+                saveToCache(data);
+                document.getElementById('main-loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                renderAll(data);
+                updateCacheStatus(false);
+            })
+            .catch(err => {
+                document.getElementById('main-loading').style.display = 'none';
+                document.getElementById('main-error').innerHTML =
+                    `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load: ${err.message}</div>`;
+                document.getElementById('main-error').style.display = 'block';
+            });
+    }
+
+    const WF_ORDER = ['pr_rocm720', 'pr_rocm700', 'rocm700', 'rocm720', 'mi355x_disagg', 'aiter_scout'];
+
+    function sortWfKeys(keys) {
+        return [...keys].sort((a, b) => {
+            const ia = WF_ORDER.indexOf(a), ib = WF_ORDER.indexOf(b);
+            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+        });
+    }
+
+    // Every workflow the backend tracks, not just the ones that happened to
+    // run. `daily[].workflows` only carries days a run exists on, so keying the
+    // overview off it drops a workflow entirely on its off days. Falls back to
+    // the union of days actually seen, so an unexpected payload still renders.
+    function trackedWfKeys(daily) {
+        const tracked = Object.keys((cachedData && cachedData.workflows) || {});
+        if (tracked.length) return sortWfKeys(tracked);
+        const seen = new Set();
+        for (const day of daily || []) {
+            for (const key of Object.keys(day.workflows)) seen.add(key);
+        }
+        return sortWfKeys([...seen]);
+    }
+
+    function wfUrl(wfKey) {
+        const summary = (cachedData && cachedData.health && cachedData.health.summary) || {};
+        return (summary[wfKey] || {}).url || '';
+    }
+
+    // A run only carries meaningful pass/fail numbers once GitHub reports it
+    // as completed. While today's scheduled run is still queued/in_progress it
+    // reports 0 passed / 0 failed, which would otherwise render as 0/0/0/0%.
+    function isRunFinished(wf) {
+        return !!wf && wf.status === 'completed';
+    }
+
+    // A run has something to show once any of its jobs has passed or failed.
+    // Which is not the same as having finished: today's gate run can be 50 jobs
+    // into 54 and still be reported as queued because one job waits for an AMD
+    // runner.
+    function hasRunSomething(wf) {
+        return !!wf && (wf.jobs_total || 0) > 0;
+    }
+
+    // Default selection: the newest run that has actually run something (newest
+    // day first, workflows in display order). Requiring a *finished* run
+    // instead passed over today's in-flight run for a day-old one; requiring
+    // only a run lands on one reporting 0 passed / 0 failed. If nothing has run
+    // yet, fall back to the latest run so the in-progress row still shows.
+    function pickDefaultRun(daily) {
+        if (!daily || daily.length === 0) return null;
+        for (const day of daily) {
+            const wfKeys = sortWfKeys(Object.keys(day.workflows));
+            for (const wfKey of wfKeys) {
+                if (hasRunSomething(day.workflows[wfKey])) {
+                    return { date: day.date, wfKey };
+                }
+            }
+        }
+        const latestDay = daily[0];
+        const wfKeys = sortWfKeys(Object.keys(latestDay.workflows));
+        return wfKeys.length > 0 ? { date: latestDay.date, wfKey: wfKeys[0] } : null;
+    }
+
+    function renderAll(data) {
+        setPageLastUpdated(data.generated_at);
+        // The window the payload actually covers, which on first load is the
+        // 7-day default rather than the 14 the markup starts out saying.
+        document.getElementById('rangeLabel').textContent = data.days || currentDays;
+        const degradedEl = document.getElementById('apiDegradedAlert');
+        if (degradedEl) degradedEl.classList.toggle('d-none', !(data && data.github_api_degraded));
+        computeMedianDurations(data.health.daily);
+        renderDailyRuns(data.health.daily);
+        renderTrendChart(data.health.daily, data.health.summary);
+        renderMatrix(data.health);
+        renderReportPicker();
+        showDailyReport(shownReportDate || reportDates()[0]);
+        const target = pickDefaultRun(data.health.daily);
+        if (target) {
+            selectRun(target.date, target.wfKey);
+        } else {
+            clearSelectedRun();
+        }
+    }
+
+    // ── Run duration ───────────────────────────────────────────────────────
+    // The wall clock from a run starting to its last job finishing — the same
+    // figure GitHub's run page prints as "Total duration", queueing included.
+    // On these workflows it is mostly the story of how long jobs waited for an
+    // AMD runner, so a nightly that normally lands in two hours can take most
+    // of a day without a single test getting slower.
+
+    // Median total duration per workflow over the runs on screen, the baseline
+    // a slow run is called slow against. Recomputed per render because it
+    // depends on the window the viewer picked.
+    let medianDurations = {};
+
+    function computeMedianDurations(daily) {
+        const byWf = {};
+        for (const day of daily || []) {
+            for (const [wfKey, wf] of Object.entries(day.workflows || {})) {
+                if (!isRunFinished(wf) || wf.duration_minutes == null) continue;
+                (byWf[wfKey] = byWf[wfKey] || []).push(wf.duration_minutes);
+            }
+        }
+        medianDurations = {};
+        for (const [wfKey, values] of Object.entries(byWf)) {
+            // Two runs are not a baseline: with one slow day in the pair, the
+            // median sits between them and both look unremarkable.
+            if (values.length < 3) continue;
+            values.sort((a, b) => a - b);
+            const mid = Math.floor(values.length / 2);
+            medianDurations[wfKey] = values.length % 2
+                ? values[mid]
+                : (values[mid - 1] + values[mid]) / 2;
+        }
+    }
+
+    // A run still in flight has no end to measure to, so it is timed against
+    // the clock. Its `duration_minutes` would report the last time GitHub
+    // touched the run, which on a run stuck in the queue is a few minutes
+    // however long it has actually been waiting.
+    function runDurationMinutes(wf) {
+        if (!wf) return null;
+        if (isRunFinished(wf)) return wf.duration_minutes != null ? wf.duration_minutes : null;
+        const started = wf.started_at ? Date.parse(wf.started_at) : NaN;
+        return isNaN(started) ? null : Math.max(0, (Date.now() - started) / 60000);
+    }
+
+    function slowFactor(wfKey, minutes) {
+        const median = medianDurations[wfKey];
+        if (median == null || minutes < median * SLOW_RUN_FACTOR) return null;
+        return minutes / median;
+    }
+
+    function durationCell(wfKey, wf) {
+        const minutes = runDurationMinutes(wf);
+        if (minutes == null) return '<td class="text-center text-muted">—</td>';
+
+        const running = !isRunFinished(wf);
+        const factor = running ? null : slowFactor(wfKey, minutes);
+        const title = [`Total duration ${formatDuration(minutes)}`];
+        if (wf.started_at) title.push(`Started ${formatTimestamp(wf.started_at)}`);
+        if (wf.completed_at) title.push(`Finished ${formatTimestamp(wf.completed_at)}`);
+        if (running) title.push('Still running as of the last refresh');
+        if (factor) {
+            title.push(`${factor.toFixed(1)}× the ${formatDuration(medianDurations[wfKey])} median of this window`);
+        }
+
+        const cls = factor ? 'text-warning-emphasis fw-semibold' : running ? 'text-primary' : 'text-muted';
+        const icon = running
+            ? ' <i class="bi bi-hourglass-split"></i>'
+            : factor ? ' <i class="bi bi-clock-history"></i>' : '';
+        return `<td class="text-center duration-cell ${cls}" title="${escapeHtml(title.join('\n'))}">${formatDuration(minutes)}${icon}</td>`;
+    }
+
+    // ── Daily Run Overview (left panel) ────────────────────────────────────
+
+    function renderDailyRuns(daily) {
+        const tbody = document.getElementById('daily-rows');
+        if (!daily || daily.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">No scheduled runs found.</td></tr>';
+            return;
+        }
+
+        const latestDate = daily[0].date;
+        const wfKeys = trackedWfKeys(daily);
+
+        let html = '';
+        for (const day of daily) {
+            const dateObj = new Date(day.date + 'T00:00:00');
+            const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dateObj.getDay()];
+            const dateDisplay = `${(dateObj.getMonth()+1).toString().padStart(2,'0')}/${dateObj.getDate().toString().padStart(2,'0')}`;
+
+            for (let i = 0; i < wfKeys.length; i++) {
+                const wfKey = wfKeys[i];
+                const wf = day.workflows[wfKey];
+                const datePrefix = i === 0
+                    ? `<td rowspan="${wfKeys.length}"><strong>${dateDisplay}</strong> <span class="text-muted">${dayName}</span> ${dailyReportLink(day.date)}</td>`
+                    : '';
+
+                if (!wf) {
+                    html += renderNoRunRow(wfKey, day.date, day.date === latestDate, datePrefix);
+                    continue;
+                }
+
+                const label = wfLabel(wfKey);
+                const passed = wf.jobs_passed ?? '—';
+                const failed = wf.jobs_failed ?? '—';
+                const skippedCancelled = ((wf.jobs_skipped || 0) + (wf.jobs_cancelled || 0)) || '—';
+                const total = wf.jobs_total ?? 0;
+                const passRate = total > 0 ? Math.round((wf.jobs_passed / total) * 100) : '—';
+
+                // A run with no finished pass/fail jobs yet hasn't really run —
+                // surface "Scheduled" plus the cron time so viewers know when the
+                // next run is expected instead of seeing a bare "—".
+                const notRunYet = total === 0;
+                const cron = wfCron(wfKey);
+
+                // While a run has not finished yet, its job counts are partial,
+                // so surface "running" instead of a misleading pass-rate %.
+                let passRateStr, passRateClass = '';
+                if (wf.ongoing) {
+                    passRateStr = '<span class="badge status-badge running">running</span>';
+                } else if (notRunYet) {
+                    passRateStr = '<span class="badge status-badge scheduled">Scheduled</span>'
+                        + (cron ? ` <span class="text-muted small">${cron}</span>` : '');
+                } else {
+                    passRateStr = typeof passRate === 'number' ? `${passRate}%` : passRate;
+                    passRateClass = passRate === 100 ? 'text-success' : passRate === '—' ? '' : 'text-danger';
+                }
+                const failedClass = (wf.jobs_failed || 0) > 0 ? 'text-danger fw-bold' : 'text-muted';
+
+                const statusIcon = wf.conclusion === 'success'
+                    ? '<i class="bi bi-check-circle-fill text-success"></i>'
+                    : wf.conclusion === 'failure'
+                    ? '<i class="bi bi-x-circle-fill text-danger"></i>'
+                    : wf.status === 'in_progress' || wf.status === 'queued'
+                    ? '<i class="bi bi-hourglass-split text-warning"></i>'
+                    : notRunYet
+                    ? `<i class="bi bi-calendar-event text-secondary"${cron ? ` title="Scheduled: ${cron}"` : ''}></i>`
+                    : '<i class="bi bi-dash-circle text-secondary"></i>';
+
+                const rowId = `run-${day.date}-${wfKey}`;
+                html += `<tr class="run-row" id="${rowId}" onclick="selectRun('${day.date}', '${wfKey}')">
+                    ${datePrefix}
+                    <td>${label}</td>
+                    <td class="text-center"><span class="text-success">${passed}</span>/<span class="text-muted">${total}</span></td>
+                    <td class="text-center"><span class="${failedClass}">${failed}</span></td>
+                    <td class="text-center"><span class="text-muted">${skippedCancelled}</span></td>
+                    <td class="text-center"><strong class="${passRateClass}">${passRateStr}</strong></td>
+                    ${durationCell(wfKey, wf)}
+                    <td class="text-center">
+                        ${statusIcon}
+                        <a href="${wf.html_url}" target="_blank" class="text-decoration-none ms-1" onclick="event.stopPropagation()"><small>#${wf.run_number}</small></a>
+                    </td>
+                </tr>`;
+            }
+        }
+        tbody.innerHTML = html;
+    }
+
+    // A tracked workflow with no run on this date. Rendering it as a row rather
+    // than omitting it is the whole point: a weekly workflow that silently
+    // disappears from every other day looks like the dashboard stopped
+    // tracking it. Three cases worth telling apart:
+    //   Not scheduled — this weekday isn't in the workflow's cron.
+    //   Scheduled     — due today, may still be waiting on its cron.
+    //   No run        — a past day it was due on and nothing was triggered.
+    function renderNoRunRow(wfKey, date, isLatestDay, datePrefix) {
+        const cron = wfCron(wfKey);
+        const cronNote = cron ? ` <span class="text-muted small">${cron}</span>` : '';
+        const due = isScheduledOn(wfKey, date) && scheduleAppliesOn(wfKey, date);
+
+        let badge, icon, title;
+        if (!due) {
+            badge = '<span class="badge status-badge skipped">Not scheduled</span>';
+            icon = '<i class="bi bi-calendar-x text-secondary"></i>';
+            title = cron ? `Runs ${cron}` : 'Not scheduled on this day';
+        } else if (isLatestDay) {
+            badge = '<span class="badge status-badge scheduled">Scheduled</span>';
+            icon = '<i class="bi bi-calendar-event text-secondary"></i>';
+            title = cron ? `Scheduled: ${cron}` : 'Scheduled';
+        } else {
+            badge = '<span class="badge status-badge cancelled">No run</span>';
+            icon = '<i class="bi bi-exclamation-triangle text-warning"></i>';
+            title = cron ? `Due ${cron} — no run was triggered` : 'No run was triggered';
+        }
+
+        const url = wfUrl(wfKey);
+        const link = url
+            ? `<a href="${url}" target="_blank" class="text-decoration-none ms-1" title="Open workflow"><small>runs</small></a>`
+            : '';
+
+        return `<tr class="text-muted" title="${title}">
+            ${datePrefix}
+            <td>${wfLabel(wfKey)}</td>
+            <td class="text-center">—</td>
+            <td class="text-center">—</td>
+            <td class="text-center">—</td>
+            <td class="text-center">${badge}${cronNote}</td>
+            <td class="text-center">—</td>
+            <td class="text-center">${icon}${link}</td>
+        </tr>`;
+    }
+
+    // ── CI Monitor Daily Report ────────────────────────────────────────────
+
+    const reportCache = {};
+    let shownReportDate = null;
+
+    function escapeHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // The report is markdown written by an automated agent, so every string
+    // from it is escaped first and only a fixed subset re-introduced: inline
+    // code, http(s) links, and bold. Nothing else in it can reach the DOM as
+    // markup.
+    function md(text) {
+        return escapeHtml(text)
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+                '<a href="$2" target="_blank" rel="noopener">$1</a>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function reportDates() {
+        return Object.keys((cachedData && cachedData.daily_reports) || {}).sort().reverse();
+    }
+
+    function reportStatusBadge(report) {
+        if (!report || !report.status) return '';
+        const cls = { red: 'bg-danger', amber: 'bg-warning text-dark', yellow: 'bg-warning text-dark', green: 'bg-success' }[report.status] || 'bg-secondary';
+        const counts = [];
+        if (report.active_clusters) counts.push(`${report.active_clusters} active`);
+        if (report.new_clusters) counts.push(`${report.new_clusters} new`);
+        return `<span class="badge ${cls}">${escapeHtml(report.status.toUpperCase())}</span>`
+            + (counts.length ? ` <span class="badge bg-light text-dark border">${counts.join(' · ')}</span>` : '');
+    }
+
+    function renderReportPicker() {
+        const dates = reportDates();
+        document.getElementById('reportCard').classList.toggle('d-none', dates.length === 0);
+        document.getElementById('reportDate').innerHTML =
+            dates.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    function showDailyReport(date, scroll) {
+        const dates = reportDates();
+        if (!dates.length) return;
+        if (!dates.includes(date)) date = dates[0];
+        shownReportDate = date;
+
+        const meta = cachedData.daily_reports[date] || {};
+        document.getElementById('reportDate').value = date;
+        document.getElementById('reportIssueLink').href = meta.url || '#';
+        document.getElementById('reportIssueLabel').textContent =
+            meta.number ? `issue #${meta.number}` : 'issue';
+        document.getElementById('reportStatus').innerHTML = reportStatusBadge(meta);
+        document.getElementById('reportSnapshot').textContent = meta.snapshot || '';
+        if (scroll) document.getElementById('reportCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        if (reportCache[date]) {
+            renderDailyReport(reportCache[date]);
+            return;
+        }
+        const body = document.getElementById('reportBody');
+        body.innerHTML = '<div class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm"></span> Loading report...</div>';
+        fetch(`/api/nightly-ci/daily-report/${date}`)
+            .then(r => {
+                // The live server answers every date (with `available: false`
+                // for one the bot skipped), so a 404 can only be the static
+                // site: that date's snapshot isn't published yet.
+                if (r.status === 404) return { available: false, unpublished: true, url: meta.url };
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                // Only a real report is worth keeping — a gap should be
+                // retried on the next visit rather than cached for the session.
+                if (data.available) reportCache[date] = data;
+                if (shownReportDate === date) renderDailyReport(data);
+            })
+            .catch(err => {
+                if (shownReportDate !== date) return;
+                body.innerHTML = `<div class="text-muted">Could not load this report (${escapeHtml(err.message)}).
+                    <a href="${escapeHtml(meta.url || '')}" target="_blank" rel="noopener">Read it on GitHub</a>.</div>`;
+            });
+    }
+
+    const CALLOUT_CLASS = {
+        caution: 'alert-danger', warning: 'alert-warning',
+        important: 'alert-primary', note: 'alert-info', tip: 'alert-success',
+    };
+
+    function renderDailyReport(data) {
+        const body = document.getElementById('reportBody');
+        if (!data || !data.available) {
+            const link = data && data.url
+                ? ` <a href="${escapeHtml(data.url)}" target="_blank" rel="noopener">Read it on GitHub</a>.`
+                : '';
+            body.innerHTML = data && data.unpublished
+                ? `<div class="text-muted">This date's report has not made it into the static snapshot yet —
+                    the site refreshes hourly.${link}</div>`
+                : '<div class="text-muted">No CI monitor report was filed for this date.</div>';
+            return;
+        }
+
+        // Prefer the report's own snapshot/verdict over the digest in the
+        // status payload, which is cached separately and can lag behind the
+        // bot's latest edit of the day's issue.
+        if (data.snapshot) document.getElementById('reportSnapshot').textContent = data.snapshot;
+        if (data.status) document.getElementById('reportStatus').innerHTML = reportStatusBadge(data);
+
+        const parts = [];
+        for (const line of data.tldr || []) parts.push(`<p class="mb-2">${md(line)}</p>`);
+        for (const callout of data.callouts || []) {
+            parts.push(`<div class="alert ${CALLOUT_CLASS[callout.level] || 'alert-secondary'} py-2 px-3 mb-2">
+                <strong class="text-uppercase small">${escapeHtml(callout.level)}</strong> ${md(callout.text)}</div>`);
+        }
+        if ((data.clusters || []).length) {
+            parts.push(`<h6 class="mt-3">Failure clusters <span class="text-muted fw-normal">(${data.clusters.length})</span></h6>`);
+            parts.push(data.clusters.map(clusterHtml).join(''));
+        }
+        if ((data.resolved || []).length) {
+            parts.push('<h6 class="mt-3">Resolved today</h6>');
+            parts.push(`<ul class="mb-2">${data.resolved.map(r => `<li>${md(r)}</li>`).join('')}</ul>`);
+        }
+        if (data.workflow_table) {
+            parts.push(reportTableDetails('Workflow status, with the day-over-day delta', data.workflow_table));
+        }
+        for (const extra of data.collapsed_tables || []) {
+            parts.push(reportTableDetails(extra.summary, extra.table));
+        }
+
+        if (!parts.length) {
+            parts.push(`<div class="text-muted">This report predates the bot's current format, so there is nothing to
+                lay out here — <a href="${escapeHtml(data.url || '')}" target="_blank" rel="noopener">read it on GitHub</a>.</div>`);
+        }
+        if (data.updated_at) {
+            parts.push(`<div class="text-muted small mt-3">Issue last edited ${formatTimestamp(data.updated_at)}.</div>`);
+        }
+        body.innerHTML = parts.join('');
+    }
+
+    function clusterHtml(cluster) {
+        const badges = [];
+        if (cluster.id) badges.push(`<span class="badge bg-dark">${escapeHtml(cluster.id)}</span>`);
+        if (cluster.is_new) badges.push('<span class="badge bg-danger">NEW</span>');
+
+        const meta = [];
+        if (cluster.workflows) meta.push(`<code>${escapeHtml(cluster.workflows)}</code>`);
+        for (const tag of cluster.tags || []) meta.push(md(tag));
+
+        const details = (cluster.details || []).map(d =>
+            `<div class="report-detail">${d.label ? `<strong>${escapeHtml(d.label)}:</strong> ` : ''}${md(d.text)}</div>`
+        ).join('');
+
+        // New clusters open by default — they are what the day's reader is
+        // looking for; carry-overs stay folded.
+        return `<details class="report-cluster fix-${escapeHtml(cluster.fix)}"${cluster.is_new ? ' open' : ''}>
+            <summary>${badges.join(' ')} ${md(cluster.title)}${meta.length ? ` <span class="text-muted">· ${meta.join(' · ')}</span>` : ''}</summary>
+            <div>${details}${cluster.table ? reportTable(cluster.table) : ''}</div>
+        </details>`;
+    }
+
+    function reportTable(table) {
+        return `<div class="table-responsive mt-2" style="max-height: none;">
+            <table class="table table-sm table-bordered report-table mb-0">
+                <thead class="table-light"><tr>${table.headers.map(h => `<th>${md(h)}</th>`).join('')}</tr></thead>
+                <tbody>${table.rows.map(row => `<tr>${row.map(c => `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+            </table></div>`;
+    }
+
+    function reportTableDetails(summary, table) {
+        return `<details class="mt-2"><summary class="text-muted">${md(summary)}</summary>${reportTable(table)}</details>`;
+    }
+
+    // ── Selected Run Detail (right panel) ──────────────────────────────────
+
+    function clearSelectedRun() {
+        document.getElementById('jobs-placeholder').style.display = 'block';
+        document.getElementById('jobs-content').style.display = 'none';
+        document.getElementById('selectedRunLabel').textContent = '—';
+        document.getElementById('selectedRunSummary').innerHTML = renderEmptySummary();
+        document.getElementById('selectedJobsLabel').textContent = 'Select a run';
+        document.getElementById('analyzeAllBtn').classList.add('d-none');
+        document.getElementById('cross-analysis').classList.add('d-none');
+        selectedRunId = null;
+        document.querySelectorAll('.run-row.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    function renderEmptySummary() {
+        return `
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Passed</div><strong class="fs-4">—</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Failed</div><strong class="fs-4">—</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Skipped/Cancelled</div><strong class="fs-4">—</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Pass Rate</div><strong class="fs-4">—</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Total Duration</div><strong class="fs-4">—</strong></div></div>
+        `;
+    }
+
+    function selectRun(date, wfKey) {
+        document.querySelectorAll('.run-row.selected').forEach(el => el.classList.remove('selected'));
+        const row = document.getElementById(`run-${date}-${wfKey}`);
+        if (row) row.classList.add('selected');
+
+        const day = cachedData.health.daily.find(d => d.date === date);
+        if (!day || !day.workflows[wfKey]) return;
+
+        const wf = day.workflows[wfKey];
+        const label = wfLabel(wfKey);
+        const dateObj = new Date(date + 'T00:00:00');
+        const dateDisplay = `${dateObj.getFullYear()}-${(dateObj.getMonth()+1).toString().padStart(2,'0')}-${dateObj.getDate().toString().padStart(2,'0')}`;
+
+        selectedRunId = wf.run_id || null;
+        document.getElementById('selectedRunLabel').textContent = `${dateDisplay} · ${label} · #${wf.run_number}`;
+        document.getElementById('cross-analysis').classList.add('d-none');
+
+        const passed = wf.jobs_passed ?? 0;
+        const failed = wf.jobs_failed ?? 0;
+        const skippedCancelled = (wf.jobs_skipped || 0) + (wf.jobs_cancelled || 0);
+        const total = wf.jobs_total ?? 0;
+        const passRate = total > 0 ? Math.round(passed / total * 100) : 0;
+        const passRateCell = wf.ongoing
+            ? '<strong class="fs-4 text-warning">running</strong>'
+            : `<strong class="fs-4 ${passRate === 100 ? 'text-success' : 'text-danger'}">${passRate}%</strong>`;
+
+        document.getElementById('selectedRunSummary').innerHTML = `
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Passed</div><strong class="fs-4 text-success">${passed}</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Failed</div><strong class="fs-4 text-danger">${failed}</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Skipped/Cancelled</div><strong class="fs-4 text-secondary">${skippedCancelled}</strong></div></div>
+            <div class="col"><div class="border rounded p-2 bg-light h-100 text-center"><div class="text-muted small">Pass Rate</div>${passRateCell}</div></div>
+            ${selectedDurationCard(wfKey, wf)}
+        `;
+
+        document.getElementById('selectedJobsLabel').textContent = `${passed}/${total} passed`;
+
+        const analyzeAllBtn = document.getElementById('analyzeAllBtn');
+        if (failed > 0 && selectedRunId) {
+            analyzeAllBtn.classList.remove('d-none');
+        } else {
+            analyzeAllBtn.classList.add('d-none');
+        }
+
+        renderJobDetail(wf.jobs || [], wfKey);
+    }
+
+    // The stat-card twin of the duration column. Start and finish stay in the
+    // tooltip — spelled out they are two long timestamps in a narrow column —
+    // and only a verdict that changes how the number reads gets a caption.
+    function selectedDurationCard(wfKey, wf) {
+        const minutes = runDurationMinutes(wf);
+        const running = !isRunFinished(wf);
+        const factor = (running || minutes == null) ? null : slowFactor(wfKey, minutes);
+
+        const title = [];
+        if (wf.started_at) title.push(`Started ${formatTimestamp(wf.started_at)}`);
+        if (wf.completed_at) title.push(`Finished ${formatTimestamp(wf.completed_at)}`);
+        title.push("GitHub's run page reports the same total duration.");
+
+        let caption = '';
+        if (minutes != null && running) {
+            caption = 'elapsed, still running';
+        } else if (factor) {
+            caption = `${factor.toFixed(1)}× the ${formatDuration(medianDurations[wfKey])} median`;
+        }
+
+        const cls = factor ? 'text-warning-emphasis' : running ? 'text-primary' : '';
+        return `<div class="col"><div class="border rounded p-2 bg-light h-100 text-center" title="${escapeHtml(title.join('\n'))}">
+            <div class="text-muted small">Total Duration</div>
+            <strong class="fs-4 ${cls}">${minutes == null ? '—' : formatDuration(minutes)}</strong>
+            ${caption ? `<div class="text-muted" style="font-size: 0.7rem;">${escapeHtml(caption)}</div>` : ''}
+        </div></div>`;
+    }
+
+    function renderJobDetail(jobs, wfKey) {
+        const placeholder = document.getElementById('jobs-placeholder');
+        const content = document.getElementById('jobs-content');
+        const tbody = document.getElementById('job-rows');
+
+        if (!jobs || jobs.length === 0) {
+            placeholder.innerHTML = '<p class="text-muted">No job data available for this run.</p>';
+            placeholder.style.display = 'block';
+            content.style.display = 'none';
+            return;
+        }
+
+        const sorted = [...jobs].sort((a, b) => {
+            const order = { failure: 0, cancelled: 1, success: 2, skipped: 3 };
+            return (order[a.conclusion] ?? 4) - (order[b.conclusion] ?? 4);
+        });
+
+        const failedJobs = [];
+        tbody.innerHTML = sorted.map(job => {
+            const rowClass = job.conclusion === 'failure' ? 'job-row-fail' : '';
+            const isFailed = job.conclusion === 'failure' || job.conclusion === 'timed_out';
+            const esc = job.name.replace(/'/g, "\\'");
+            const cacheKey = `${job.id}_simple`;
+            const deepKey = `${job.id}_progressive`;
+            let analyzeCell;
+            if (isFailed && analysisCache[deepKey]) {
+                analyzeCell = `<td>${formatAnalysis(analysisCache[deepKey], 'progressive')}</td>`;
+            } else if (isFailed && analysisCache[cacheKey]) {
+                analyzeCell = `<td>${formatAnalysis(analysisCache[cacheKey], 'simple')}</td>`;
+            } else if (isFailed) {
+                analyzeCell = `<td id="analysis-${job.id}"><small class="text-muted" style="font-size:0.73rem"><span class="spinner-border spinner-border-sm"></span> Analyzing...</small></td>`;
+                failedJobs.push({ id: job.id, name: job.name });
+            } else {
+                analyzeCell = '<td></td>';
+            }
+            return `<tr class="${rowClass}">
+                <td>${job.name}</td>
+                <td class="text-center">${statusBadge(job.conclusion || job.status)}</td>
+                <td class="text-center">${job.duration_minutes != null ? formatDuration(job.duration_minutes) : '—'}</td>
+                <td class="text-center"><a href="${job.html_url}" target="_blank" title="View log"><i class="bi bi-box-arrow-up-right"></i></a></td>
+                ${analyzeCell}
+            </tr>`;
+        }).join('');
+
+        placeholder.style.display = 'none';
+        content.style.display = 'block';
+
+        if (failedJobs.length > 0) {
+            pendingAnalyses = failedJobs.length;
+            currentRunFailedJobs = failedJobs.slice();
+            for (const job of failedJobs) {
+                autoAnalyze(job.id, job.name);
+            }
+        }
+    }
+
+    let pendingAnalyses = 0;
+    let currentRunFailedJobs = [];
+
+    function onAnalysisComplete() {
+        pendingAnalyses--;
+        if (pendingAnalyses > 0) return;
+
+        showRunSummary();
+
+        for (const job of currentRunFailedJobs) {
+            prefetchDeep(job.id, job.name);
+        }
+    }
+
+    function showRunSummary() {
+        const crossEl = document.getElementById('cross-analysis');
+        const summaries = currentRunFailedJobs
+            .map(j => { const t = analysisCache[`${j.id}_simple`]; return t ? `**${j.name}**: ${t}` : null; })
+            .filter(Boolean);
+        if (summaries.length === 0) return;
+
+        const runKey = `summary_${selectedRunId}`;
+        if (!analysisCache[runKey]) {
+            analysisCache[runKey] = summaries.join('\n\n');
+        }
+        const html = summaries.map(s => s
+            .replace(/\*\*([^*]+)\*\*:/g, '<strong>$1:</strong>')
+            .replace(/\*\*Root Cause\*\*:/g, '<strong class="text-danger">Root Cause:</strong>')
+            .replace(/\*\*Fix Direction\*\*:/g, '<strong class="text-success">Fix Direction:</strong>')
+            .replace(/\*\*Priority\*\*:/g, '<strong class="text-info">Priority:</strong>')
+            .replace(/\n/g, '<br>')
+        ).join('<hr class="my-1">');
+        crossEl.innerHTML = `<strong>Failure Summary (${summaries.length} jobs)</strong><hr class="my-1">${html}`;
+        crossEl.classList.remove('d-none');
+    }
+
+    function autoAnalyze(jobId, jobName) {
+        const cacheKey = `${jobId}_simple`;
+        const cell = document.getElementById(`analysis-${jobId}`);
+        if (!cell) return;
+        if (analysisCache[cacheKey]) {
+            cell.innerHTML = formatAnalysis(analysisCache[cacheKey], 'simple');
+            onAnalysisComplete();
+            return;
+        }
+        fetch(`/api/nightly-ci/analyze/${jobId}?name=${encodeURIComponent(jobName)}&mode=simple`)
+            .then(r => r.json())
+            .then(d => {
+                const text = d.analysis || 'No analysis available.';
+                analysisCache[cacheKey] = text;
+                if (cell) cell.innerHTML = formatAnalysis(text, 'simple');
+                onAnalysisComplete();
+            })
+            .catch(() => {
+                if (cell) cell.innerHTML = `<button class="btn btn-outline-danger btn-sm py-0 px-1" style="font-size:0.75rem" onclick="analyzeJob(${jobId}, '${jobName.replace(/'/g, "\\'")}', this, 'simple')"><i class="bi bi-robot"></i> Analyze</button>`;
+                onAnalysisComplete();
+            });
+    }
+
+    function prefetchDeep(jobId, jobName) {
+        const deepKey = `${jobId}_progressive`;
+        if (analysisCache[deepKey]) return;
+        fetch(`/api/nightly-ci/analyze/${jobId}?name=${encodeURIComponent(jobName)}&mode=progressive`)
+            .then(r => r.json())
+            .then(d => {
+                const text = d.analysis || '';
+                if (text) {
+                    analysisCache[deepKey] = text;
+                    const cell = document.getElementById(`analysis-${jobId}`);
+                    if (cell) cell.innerHTML = formatAnalysis(text, 'progressive');
+                }
+            })
+            .catch(() => {});
+    }
+
+    // ── Job Status Matrix ──────────────────────────────────────────────────
+
+    function renderMatrix(health) {
+        const daily = health.daily || [];
+        const showAll = document.getElementById('showAllJobsToggle').checked;
+
+        // Collect all jobs per workflow, filtering by selected workflow
+        const jobsByWf = {};
+        for (const day of daily) {
+            for (const [wfKey, wf] of Object.entries(day.workflows)) {
+                if (matrixFilter !== 'all' && matrixFilter !== wfKey) continue;
+                if (!wf.jobs) continue;
+                if (!jobsByWf[wfKey]) jobsByWf[wfKey] = new Set();
+                for (const j of wf.jobs) jobsByWf[wfKey].add(j.name);
+            }
+        }
+
+        // Determine which jobs (rows) to show
+        const jobRows = [];
+        for (const [wfKey, names] of Object.entries(jobsByWf)) {
+            const label = wfLabel(wfKey);
+            for (const name of [...names].sort()) {
+                if (!showAll) {
+                    const everFailed = daily.some(d => {
+                        const wf = d.workflows[wfKey];
+                        if (!wf || !wf.jobs) return false;
+                        const job = wf.jobs.find(j => j.name === name);
+                        return job && job.conclusion !== 'success' && job.conclusion !== 'skipped';
+                    });
+                    if (!everFailed) continue;
+                }
+                jobRows.push({ wfKey, name, wfLabel: label });
+            }
+        }
+
+        // Date columns (newest first, left to right)
+        const dateCols = daily.map(day => {
+            const dateObj = new Date(day.date + 'T00:00:00');
+            const dayName = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dateObj.getDay()];
+            const dateDisplay = `${(dateObj.getMonth()+1).toString().padStart(2,'0')}/${dateObj.getDate().toString().padStart(2,'0')}`;
+            return { date: day.date, dateDisplay, dayName };
+        });
+
+        // Header: Task | date1 | date2 | ...
+        const thead = document.getElementById('matrix-head');
+        thead.innerHTML = `<tr>
+            <th style="position: sticky; left: 0; z-index: 2; background: #f8f9fa; min-width: 220px;">Task</th>
+            ${dateCols.map(dc => `<th class="text-center" style="min-width: 50px; font-size: 0.75rem; padding: 4px 2px;"><div>${dc.dateDisplay}</div><div class="text-muted fw-normal">${dc.dayName}</div><div class="fw-normal">${dailyReportLink(dc.date)}</div></th>`).join('')}
+        </tr>`;
+
+        const tbody = document.getElementById('matrix-body');
+        if (daily.length === 0 || jobRows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${dateCols.length + 1}" class="text-center text-muted py-3">No data</td></tr>`;
+            return;
+        }
+
+        // Render one row per job
+        let html = '';
+        let prevWfKey = null;
+        for (const jr of jobRows) {
+            // Insert workflow group header when wfKey changes
+            if (jr.wfKey !== prevWfKey) {
+                prevWfKey = jr.wfKey;
+                html += `<tr class="wf-section-header">
+                    <td colspan="${dateCols.length + 1}" style="position: sticky; left: 0; z-index: 1; background: #f0f1f3;">${jr.wfLabel}</td>
+                </tr>`;
+            }
+
+            const cells = dateCols.map(dc => {
+                const day = daily.find(d => d.date === dc.date);
+                if (!day) return '<td class="text-center"><small class="text-muted">—</small></td>';
+                const wf = day.workflows[jr.wfKey];
+                if (!wf || !wf.jobs) return '<td class="text-center"><small class="text-muted">—</small></td>';
+                const job = wf.jobs.find(j => j.name === jr.name);
+                if (!job) return '<td class="text-center"><small class="text-muted">—</small></td>';
+
+                if (job.conclusion === 'success') {
+                    return '<td class="text-center"><span class="text-success" title="Pass">&#10003;</span></td>';
+                } else if (job.conclusion === 'failure') {
+                    return `<td class="text-center"><a href="${job.html_url}" target="_blank" class="text-danger fw-bold text-decoration-none" title="Fail — click for logs">&#10007;</a></td>`;
+                } else if (job.conclusion === 'skipped') {
+                    return '<td class="text-center"><span class="text-muted" title="Skipped">○</span></td>';
+                } else if (job.conclusion === 'cancelled') {
+                    return '<td class="text-center"><span class="text-warning" title="Cancelled">⊘</span></td>';
+                } else {
+                    return `<td class="text-center"><span class="text-info" title="${job.status || ''}">⧖</span></td>`;
+                }
+            }).join('');
+
+            html += `<tr>
+                <td style="position: sticky; left: 0; z-index: 1; background: #fff; white-space: nowrap;"><small>${jr.name}</small></td>
+                ${cells}
+            </tr>`;
+        }
+
+        // Pass/Total footer row
+        html += `<tr class="table-light fw-bold">
+            <td style="position: sticky; left: 0; z-index: 1; background: #f8f9fa;">Pass / Total</td>
+            ${dateCols.map(dc => {
+                const day = daily.find(d => d.date === dc.date);
+                if (!day) return '<td class="text-center">—</td>';
+                let dayPass = 0, dayTotal = 0;
+                for (const [wfKey, wf] of Object.entries(day.workflows)) {
+                    if (matrixFilter !== 'all' && matrixFilter !== wfKey) continue;
+                    dayPass += wf.jobs_passed || 0;
+                    dayTotal += wf.jobs_total || 0;
+                }
+                const color = dayPass === dayTotal ? 'text-success' : 'text-danger';
+                return `<td class="text-center ${color}">${dayPass}/${dayTotal}</td>`;
+            }).join('')}
+        </tr>`;
+
+        tbody.innerHTML = html;
+    }
+
+    // ── Trend Chart ────────────────────────────────────────────────────────
+
+    function changeTrendMetric(metric) {
+        trendMetric = metric;
+        document.querySelectorAll('[data-metric]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.metric === metric);
+        });
+        document.getElementById('trendTitle').textContent =
+            metric === 'duration' ? 'Total Duration Trend' : 'Pass Rate Trend';
+        if (cachedData) renderTrendChart(cachedData.health.daily, cachedData.health.summary);
+    }
+
+    function renderTrendChart(daily, summary) {
+        if (trendChart) trendChart.destroy();
+
+        const reversed = [...daily].reverse();
+        const labels = reversed.map(d => {
+            const dateObj = new Date(d.date + 'T00:00:00');
+            return `${(dateObj.getMonth()+1)}/${dateObj.getDate()}`;
+        });
+
+        const wfKeys = Object.keys(summary);
+        const colors = { rocm700: '#0d6efd', rocm720: '#6f42c1', aiter_scout: '#20c997', pr_rocm720: '#fd7e14', pr_rocm700: '#d63384', mi355x_disagg: '#198754' };
+        const duration = trendMetric === 'duration';
+        const datasets = [];
+
+        for (const key of wfKeys) {
+            // Both series skip runs still in progress: a partial pass rate and
+            // a duration that has not finished growing both draw a dip that
+            // isn't there. Durations are plotted in hours — these runs span
+            // two to twenty-odd of them, and minutes make the axis unreadable.
+            const data = reversed.map(d => {
+                const wf = d.workflows[key];
+                if (!wf || wf.ongoing || !isRunFinished(wf)) return null;
+                if (duration) {
+                    return wf.duration_minutes != null
+                        ? Math.round(wf.duration_minutes / 6) / 10
+                        : null;
+                }
+                if (wf.jobs_total == null || wf.jobs_total === 0) return null;
+                return Math.round((wf.jobs_passed / wf.jobs_total) * 100);
+            });
+            const pointColor = duration
+                ? data.map(v => v != null && slowFactor(key, v * 60) ? '#fd7e14' : colors[key] || '#6c757d')
+                : data.map(v => v === 100 ? '#198754' : v != null ? '#dc3545' : '#adb5bd');
+            datasets.push({
+                label: summary[key].label,
+                data,
+                borderColor: colors[key] || '#6c757d',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: pointColor,
+                fill: false,
+                tension: 0.2,
+                spanGaps: true,
+            });
+        }
+
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        trendChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: duration
+                        ? {
+                            min: 0,
+                            ticks: { callback: v => `${v}h` },
+                            title: { display: true, text: 'Total Duration (hours)' },
+                        }
+                        : {
+                            min: 0, max: 105,
+                            ticks: { callback: v => `${v}%`, stepSize: 20 },
+                            title: { display: true, text: 'Job Pass Rate %' },
+                        },
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                if (ctx.raw == null) return `${ctx.dataset.label}: N/A`;
+                                return duration
+                                    ? `${ctx.dataset.label}: ${formatDuration(ctx.raw * 60)}`
+                                    : `${ctx.dataset.label}: ${ctx.raw}%`;
+                            }
+                        }
+                    },
+                    legend: { labels: { usePointStyle: true, pointStyle: 'circle', font: { size: 11 } } }
+                }
+            }
+        });
+    }
+
+    // ── Utilities ──────────────────────────────────────────────────────────
+
+    function statusBadge(status) {
+        if (!status) return '<span class="badge status-badge">Unknown</span>';
+        const s = status.toLowerCase();
+        let cls = s;
+        let text = s.charAt(0).toUpperCase() + s.slice(1);
+        if (s === 'success') { text = 'Pass'; }
+        if (s === 'failure') { text = 'Fail'; }
+        return `<span class="badge status-badge ${cls}">${text}</span>`;
+    }
+
+    function formatDuration(minutes) {
+        if (minutes == null) return '—';
+        if (minutes < 1) return '<1m';
+        const h = Math.floor(minutes / 60);
+        const m = Math.round(minutes % 60);
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    const analysisCache = {};
+    function analyzeJob(jobId, jobName, btn, mode) {
+        mode = mode || 'simple';
+        const cacheKey = `${jobId}_${mode}`;
+        const parentCell = btn.closest('td');
+        if (analysisCache[cacheKey]) {
+            parentCell.innerHTML = formatAnalysis(analysisCache[cacheKey], mode);
+            return;
+        }
+        const allBtns = parentCell.querySelectorAll('button');
+        allBtns.forEach(b => { b.disabled = true; });
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${mode === 'progressive' ? 'Deep...' : 'Quick...'}`;
+        fetch(`/api/nightly-ci/analyze/${jobId}?name=${encodeURIComponent(jobName)}&mode=${mode}`)
+            .then(r => r.json())
+            .then(d => {
+                const text = d.analysis || 'No analysis available.';
+                analysisCache[cacheKey] = text;
+                parentCell.innerHTML = formatAnalysis(text, mode);
+            })
+            .catch(() => {
+                allBtns.forEach(b => { b.disabled = false; });
+                btn.innerHTML = mode === 'progressive' ? '<i class="bi bi-cpu"></i> Deep' : '<i class="bi bi-robot"></i> Quick';
+            });
+    }
+
+    function formatAnalysis(text, mode) {
+        const style = 'font-size:0.73rem; line-height:1.3;';
+        const modeTag = mode === 'progressive'
+            ? '<span class="badge bg-primary" style="font-size:0.6rem;">DEEP</span> '
+            : '';
+        const formatted = text
+            .replace(/\*\*Root Cause\*\*:/g, '<strong class="text-danger">Root Cause:</strong>')
+            .replace(/\*\*Stack Trace\*\*:/g, '<strong class="text-warning">Stack Trace:</strong>')
+            .replace(/\*\*Fix Direction\*\*:/g, '<strong class="text-success">Fix Direction:</strong>')
+            .replace(/\*\*Priority\*\*:/g, '<strong class="text-info">Priority:</strong>')
+            .replace(/\n/g, '<br>');
+        return `<small class="text-muted" style="${style}">${modeTag}${formatted}</small>`;
+    }
+
+    function analyzeAllFailures() {
+        if (!selectedRunId) return;
+        const btn = document.getElementById('analyzeAllBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Analyzing all...';
+        const crossEl = document.getElementById('cross-analysis');
+        crossEl.classList.remove('d-none');
+        crossEl.innerHTML = '<div class="text-center"><span class="spinner-border spinner-border-sm"></span> Running cross-job failure analysis...</div>';
+
+        fetch(`/api/nightly-ci/analyze-run/${selectedRunId}`)
+            .then(r => r.json())
+            .then(d => {
+                const text = (d.analysis || 'No analysis available.')
+                    .replace(/\*\*Common Patterns\*\*:/g, '<strong class="text-danger">Common Patterns:</strong>')
+                    .replace(/\*\*Distinct Issues\*\*:/g, '<strong class="text-warning">Distinct Issues:</strong>')
+                    .replace(/\*\*Root Cause Summary\*\*:/g, '<strong class="text-primary">Root Cause Summary:</strong>')
+                    .replace(/\*\*Prioritized Fixes\*\*:/g, '<strong class="text-success">Prioritized Fixes:</strong>')
+                    .replace(/\*\*Overall Severity\*\*:/g, '<strong class="text-info">Overall Severity:</strong>')
+                    .replace(/\n/g, '<br>');
+                const count = d.failed_count ? ` (${d.failed_count} failed jobs)` : '';
+                crossEl.innerHTML = `<strong>Cross-Job Failure Analysis${count}</strong><hr class="my-1">${text}`;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cpu"></i> Analyze All Failures';
+            })
+            .catch(err => {
+                crossEl.innerHTML = `<span class="text-danger">Analysis failed: ${err.message}</span>`;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cpu"></i> Analyze All Failures';
+            });
+    }
+
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

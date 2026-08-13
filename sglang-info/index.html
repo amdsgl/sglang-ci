@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGLang Info - SGLang Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="display-5 mb-1">
+            <i class="bi bi-info-circle"></i> SGLang Info
+        </h1>
+        <p class="text-muted mb-0">Overview of SGLang, CI infrastructure, and Docker images</p>
+    </div>
+</div>
+
+<!-- Docker Images Section -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3 mb-lg-0">
+        <div class="card h-100 border-primary">
+            <div class="card-header bg-primary text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Stable Docker Image</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">Official SGLang release images for production use.</p>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <code class="bg-light px-2 py-1 rounded flex-grow-1">lmsysorg/sglang</code>
+                    <a href="https://hub.docker.com/r/lmsysorg/sglang/tags" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="bi bi-box-arrow-up-right"></i> Docker Hub
+                    </a>
+                </div>
+                <div class="text-muted small">
+                    <i class="bi bi-terminal"></i> <code>docker pull lmsysorg/sglang:latest</code>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100 border-danger">
+            <div class="card-header bg-danger text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-box-seam"></i> ROCm Nightly Image</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">AMD ROCm nightly builds for MI300X/MI325X/MI355X development.</p>
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <code class="bg-light px-2 py-1 rounded flex-grow-1">rocm/sgl-dev</code>
+                    <a href="https://hub.docker.com/r/rocm/sgl-dev/tags" target="_blank" class="btn btn-sm btn-danger">
+                        <i class="bi bi-box-arrow-up-right"></i> Docker Hub
+                    </a>
+                </div>
+                <div class="text-muted small">
+                    <i class="bi bi-terminal"></i> <code>docker pull rocm/sgl-dev:latest</code>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SGLang Overview Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> What is SGLang?</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <a href="https://github.com/sgl-project/sglang" target="_blank" class="fw-bold text-decoration-none">SGLang</a>
+                    is a fast serving framework for large language models and vision-language models.
+                    It makes your model fast and easy to use with a flexible frontend language and powerful backend runtime.
+                </p>
+                <p class="mb-3">
+                    For an in-depth introduction with setup instructions and examples on AMD Instinct GPUs, see the
+                    <a href="https://rocm.blogs.amd.com/artificial-intelligence/sglang/README.html" target="_blank">ROCm blog post: SGLang on AMD Instinct GPUs</a>.
+                </p>
+                <h6 class="fw-bold">Key Capabilities</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li>High-throughput LLM/VLM inference serving</li>
+                            <li>Supports <strong>100+ model architectures</strong>: dense LLMs, MoE, VLMs, diffusion models</li>
+                            <li>Multi-GPU: tensor parallelism (TP), expert parallelism (EP), data parallelism (DP)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="mb-0">
+                            <li>FP8/INT4 quantization, continuous batching, RadixAttention (prefix caching)</li>
+                            <li>Multi-platform: NVIDIA, <strong>AMD (MI300X/MI325X/MI355X)</strong>, Ascend NPU</li>
+                            <li>Community cookbook: <a href="https://cookbook.sglang.io" target="_blank">cookbook.sglang.io</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SGLang CI Section -->
+<div class="row mb-4">
+    <div class="col-lg-6 mb-3 mb-lg-0">
+        <div class="card h-100">
+            <div class="card-header bg-secondary text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> What is SGLang CI?</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    SGLang's upstream CI (<a href="https://github.com/sgl-project/sglang" target="_blank">sgl-project/sglang</a>)
+                    runs automated tests on every PR and nightly to validate correctness and performance across GPU platforms.
+                </p>
+                <h6 class="fw-bold">AMD CI Infrastructure</h6>
+                <table class="table table-sm table-bordered mb-0">
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold text-nowrap">Self-hosted runners</td>
+                            <td>
+                                <code>linux-mi325-gpu-8</code> (MI300X/MI325X)<br>
+                                <code>linux-mi35x-gpu-8</code> (MI355X)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-nowrap">ROCm versions</td>
+                            <td>ROCm 7.0 (default) and ROCm 7.2</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-nowrap">Execution</td>
+                            <td>Docker-based: each job spins up a ROCm container, installs dependencies, runs tests</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold text-nowrap">Test registration</td>
+                            <td>Tests live in <code>test/registered/amd/</code> and register via <code>register_amd_ci()</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-moon-stars"></i> What is Nightly CI?</h5>
+            </div>
+            <div class="card-body">
+                <p>Nightly CI runs every night (not on every PR) to test things that are too expensive or slow for per-PR testing:</p>
+                <table class="table table-sm table-bordered mb-2">
+                    <thead class="table-light">
+                        <tr><th>Type</th><th>What it tests</th><th>Example</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fw-bold">Accuracy</td>
+                            <td>Run models end-to-end, check output quality against benchmarks</td>
+                            <td><small>MiniMax-M2.5, DeepSeek-V3.2, GLM-5</small></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Performance</td>
+                            <td>Measure throughput/latency, detect regressions</td>
+                            <td><small>DeepSeek-V3.2 MTP decode speed</small></td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Large models</td>
+                            <td>8-GPU models too big for per-PR runners</td>
+                            <td><small>Kimi-K2.5 (TP=8), Qwen3-235B</small></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="small text-muted">
+                    <strong>Workflow files:</strong>
+                    <code>nightly-test-amd.yml</code> (ROCm 7.0) &amp;
+                    <code>nightly-test-amd-rocm720.yml</code> (ROCm 7.2).
+                    Each model gets up to 4 nightly jobs (MI30x + MI35x, each on ROCm 7.0 + 7.2).
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SGLang Cookbook Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white py-2">
+                <h5 class="mb-0"><i class="bi bi-book"></i> SGLang Cookbook</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    The <a href="https://cookbook.sglang.io" target="_blank" class="fw-bold text-decoration-none">SGLang Cookbook</a>
+                    is a community-maintained site with practical guides for deploying SGLang with various models on different hardware.
+                    Includes AMD-specific deployment guides.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark py-2">
+                <h5 class="mb-0"><i class="bi bi-link-45deg"></i> Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
+                    <div class="col">
+                        <a href="https://github.com/sgl-project/sglang" target="_blank" class="btn btn-outline-dark w-100 text-start">
+                            <i class="bi bi-github"></i> SGLang (upstream)
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="btn btn-outline-dark w-100 text-start">
+                            <i class="bi bi-github"></i> michaelzhang-ai/sglang-ci
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://cookbook.sglang.io" target="_blank" class="btn btn-outline-success w-100 text-start">
+                            <i class="bi bi-book"></i> SGLang Cookbook
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://rocm.blogs.amd.com/artificial-intelligence/sglang/README.html" target="_blank" class="btn btn-outline-danger w-100 text-start">
+                            <i class="bi bi-newspaper"></i> ROCm Blog Post
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://hub.docker.com/r/lmsysorg/sglang/tags" target="_blank" class="btn btn-outline-primary w-100 text-start">
+                            <i class="bi bi-box-seam"></i> Stable Docker Images
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://hub.docker.com/r/rocm/sgl-dev/tags" target="_blank" class="btn btn-outline-danger w-100 text-start">
+                            <i class="bi bi-box-seam"></i> ROCm Nightly Images
+                        </a>
+                    </div>
+                    <div class="col">
+                        <a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="btn btn-outline-secondary w-100 text-start">
+                            <i class="bi bi-broadcast-pin"></i> GitHub Status
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

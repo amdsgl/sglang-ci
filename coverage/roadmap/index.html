@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage Roadmap</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<!-- Header -->
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-signpost-split"></i> AMD Coverage Roadmap
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="/sglang-ci/inhouse/">Home</a></li>
+                        <li class="breadcrumb-item"><a href="/sglang-ci/coverage/">Coverage</a></li>
+                        <li class="breadcrumb-item active">Roadmap</li>
+                    </ol>
+                </nav>
+                <small class="text-muted d-block mt-1">
+                    A worklist for the
+                    <a href="/sglang-ci/coverage#amd-gap/">NVIDIA Tests Not Run on AMD</a>
+                    set: what to register, in what order, and what each phase buys.
+                    Derived live from the same <code>/api/coverage/overview</code> snapshot the
+                    Coverage page uses, so it refreshes with every hourly rebuild.
+                </small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="/sglang-ci/coverage/" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Coverage Overview
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/blob/main/python/sglang/test/ci/ci_register.py" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-file-earmark-code"></i> ci_register.py
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading / error state -->
+<div id="roadmap-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading…</span>
+    </div>
+    <div class="text-muted mt-2 small">Loading coverage snapshot…</div>
+</div>
+<div id="roadmap-error" class="alert alert-danger" style="display:none;">
+    <i class="bi bi-exclamation-triangle"></i>
+    <span id="roadmap-error-msg"></span>
+</div>
+
+<div id="roadmap-content" style="display:none;">
+
+    <!-- Summary cards -->
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="card text-center h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Overlap Today</h6>
+                    <h2 class="card-title" id="rm-overlap-now">-</h2>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-primary" id="rm-overlap-now-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <small class="text-muted">
+                        <span id="rm-overlap-num">-</span> of <span id="rm-cuda-enabled">-</span>
+                        NVIDIA-comparable registrations also run on AMD
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-danger">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Gap Files</h6>
+                    <h2 class="card-title text-danger" id="rm-gap-count">-</h2>
+                    <small class="text-muted">NVIDIA-comparable, no <code>register_amd_ci</code></small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-success">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Register Now</h6>
+                    <h2 class="card-title text-success" id="rm-ready-count">-</h2>
+                    <small class="text-muted">two-line edit, no ROCm work expected</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 border-info">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2 text-muted">Runner Time To Close</h6>
+                    <h2 class="card-title text-info" id="rm-est-total">-</h2>
+                    <small class="text-muted">sum of <code>est_time</code> across all gap files</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projection chart -->
+    <div class="row mb-4">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="bi bi-graph-down-arrow"></i> Gap files remaining after each phase</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="rmProjectionChart" height="150"></canvas>
+                </div>
+                <div class="card-footer small text-muted">
+                    Counted in files, not percentages: the coverage ratio on the Coverage page
+                    divides totals and AMD's nightly surface is larger than NVIDIA's, so that
+                    ratio can move without any of these files being closed. Phases are
+                    independent — reorder them freely, the totals do not change.
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header py-2">
+                    <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Gap by readiness</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="rmRiskChart" height="150"></canvas>
+                </div>
+                <div class="card-footer small text-muted">
+                    Readiness is inferred from the file path using the AMD-enablement rules:
+                    NVIDIA-only kernel families (Marlin, NVFP4, FlashInfer/FA3, ModelOpt, GGUF,
+                    GPTQ, bitsandbytes, SM120, EAGLE) need real ROCm work; hardware-agnostic
+                    folders are a registration away; everything else should be probed on MI325
+                    before committing.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phases -->
+    <h5 class="mb-2"><i class="bi bi-list-ol"></i> Phases</h5>
+    <p class="small text-muted mb-2">
+        Ordered by coverage gained per unit of risk. Click a phase to filter the worklist below.
+    </p>
+    <div class="row mb-4" id="rm-phase-cards"></div>
+
+    <!-- Worklist -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h6 class="mb-0">
+                        <i class="bi bi-list-check"></i> Worklist (<span id="rm-worklist-count">-</span>)
+                    </h6>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        <div class="btn-group btn-group-sm" role="group" id="rm-readiness-filter"></div>
+                        <input type="search" class="form-control form-control-sm" id="rm-search"
+                               placeholder="Filter by file or folder…" style="max-width: 240px;">
+                    </div>
+                </div>
+                <div class="px-3 pt-2">
+                    <div class="btn-group btn-group-sm flex-wrap" role="group" id="rm-phase-filter"></div>
+                </div>
+                <div class="card-body pt-2" style="max-height: 620px; overflow-y: auto;">
+                    <table class="table table-sm table-striped mb-0" style="font-size: 0.8rem;">
+                        <thead class="table-danger">
+                            <tr>
+                                <th>File</th>
+                                <th>Folder</th>
+                                <th>NVIDIA suite</th>
+                                <th>Target AMD suite</th>
+                                <th>Cadence</th>
+                                <th class="text-end">Est.</th>
+                                <th>Readiness</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rm-worklist-rows"></tbody>
+                    </table>
+                    <div id="rm-worklist-empty" class="text-muted small py-3" style="display:none;">
+                        No files match this filter.
+                    </div>
+                </div>
+                <div class="card-footer small text-muted">
+                    Target AMD suite comes from the NVIDIA suite via the standard mapping
+                    (<code>base-*</code> &rarr; <code>stage-*-amd</code>,
+                    <code>base-b-kernel-*</code> &rarr; <code>jit-kernel-*-amd</code>,
+                    <code>nightly-*</code> &rarr; <code>nightly-amd-*</code>). A dash means AMD has
+                    no equivalent suite yet, so the file needs a workflow change rather than a
+                    registration. Verify on both lanes: <code>pr-test-amd.yml</code> (ROCm 7.0,
+                    automatic) and <code>pr-test-amd-rocm720.yml</code> (ROCm 7.2, dispatch only).
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blocked backlog -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning py-2 d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#rmBlockedTable" aria-expanded="false" style="cursor: pointer;">
+                    <h6 class="mb-0">
+                        <i class="bi bi-shield-exclamation"></i>
+                        Blocked backlog — excluded NVIDIA tests (<span id="rm-blocked-count">-</span>)
+                    </h6>
+                    <small><i class="bi bi-chevron-down"></i> Click to expand</small>
+                </div>
+                <div id="rmBlockedTable" class="collapse">
+                    <div class="card-body">
+                        <p class="small text-muted mb-2">
+                            Not part of the roadmap above: these are already off the AMD-comparable
+                            denominator because something about the hardware or the libraries blocks
+                            them. Each theme is a candidate for a ROCm engineering project rather
+                            than a registration PR. Full per-file list lives on the
+                            <a href="/sglang-ci/coverage#amd-excluded/">Coverage page</a>.
+                        </p>
+                        <table class="table table-sm table-striped mb-0" style="font-size: 0.85rem;">
+                            <thead class="table-warning">
+                                <tr><th>Theme</th><th class="text-end">Files</th><th>Share</th></tr>
+                            </thead>
+                            <tbody id="rm-blocked-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-light border small text-muted">
+        <i class="bi bi-info-circle"></i>
+        <strong>How to read this.</strong>
+        The Coverage page headline divides totals, and AMD's nightly surface is larger than
+        NVIDIA's, so it can sit near 100% while per-PR signal is missing. This page works from the
+        file list instead: every NVIDIA registration that is AMD-comparable and has no enabled
+        <code>register_amd_ci(...)</code>. "Overlap Today" is the bounded version of the same
+        question — the share of NVIDIA-comparable registrations AMD also runs — and it reaches
+        100% exactly when this worklist is empty.
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    // ── Classification rules ───────────────────────────────────────
+    // Path fragments that mean "a registration alone will not make this
+    // pass on ROCm" — same list the AMD enablement playbook uses.
+    const RM_BLOCKED_PATTERNS = [
+        ['_sm120', 'SM120 / Blackwell consumer'],
+        ['nvfp4', 'NVFP4 quantization'],
+        ['marlin', 'Marlin kernels'],
+        ['eagle_infer', 'EAGLE speculative decode'],
+        ['flashinfer', 'FlashInfer'],
+        ['_fa3', 'FA3 attention'],
+        ['_fa4', 'FA4 attention'],
+        ['modelopt', 'ModelOpt FP8'],
+        ['_bnb', 'bitsandbytes'],
+        ['gguf', 'GGUF'],
+        ['gptq', 'GPTQ'],
+        ['nemotron_nano_v2_vl', 'Nemotron VL'],
+    ];
+
+    // Folders whose tests are hardware-agnostic in practice: CPU-bound units,
+    // server/API surface, cache and loader plumbing.
+    const RM_READY_FOLDERS = new Set([
+        'unit', 'core', 'sessions', 'observability', 'distributed', 'prefill_only',
+        'radix_cache', 'hicache', 'input_embedding', 'rl', 'model_loading',
+        'openai_server', 'attention', 'kernels', 'utils', 'scheduler', 'tokenizer',
+        'sampling', 'layers', 'debug_utils', 'profiling',
+    ]);
+
+    // NVIDIA suite -> the AMD suite a registration should target. Exact names
+    // first, then prefix rules for the nightly families.
+    const RM_SUITE_MAP = {
+        'base-a-test-1-gpu-small': 'stage-a-test-1-gpu-small-amd',
+        'base-b-test-1-gpu-small': 'stage-b-test-1-gpu-small-amd',
+        'base-b-test-1-gpu-large': 'stage-b-test-1-gpu-large-amd',
+        'base-b-test-2-gpu-large': 'stage-b-test-2-gpu-large-amd',
+        'base-b-kernel-unit-test-1-gpu-large': 'jit-kernel-unit-test-amd',
+        'base-b-kernel-benchmark-test-1-gpu-large': 'jit-kernel-benchmark-test-amd',
+        'extra-a-test-1-gpu-small': 'extra-a-test-1-gpu-small-amd',
+        'extra-a-test-1-gpu-large': 'extra-a-test-1-gpu-large-amd',
+        'extra-a-test-2-gpu-large': 'extra-a-test-2-gpu-large-amd',
+        // Upstream's stage-shaped nightly names, plus the legacy ones a
+        // cached report may still carry.
+        'nightly-test-1-gpu-large': 'nightly-amd-1-gpu',
+        'nightly-1-gpu': 'nightly-amd-1-gpu',
+        'nightly-4-gpu': 'nightly-amd-4-gpu',
+        'nightly-perf-text-2-gpu': 'nightly-amd-perf-text-2-gpu',
+        'nightly-perf-vlm-2-gpu': 'nightly-amd-perf-vlm-2-gpu',
+        'nightly-eval-vlm-2-gpu': 'nightly-amd-accuracy-2-gpu-vlm',
+        'nightly-kernel-1-gpu': 'nightly-amd-kernel-1-gpu',
+    };
+
+    const RM_PHASES = [
+        {
+            id: 'kernel',
+            name: 'Kernel suites',
+            blurb: 'JIT kernel unit and benchmark tests. No server fixture, no model download — the cheapest partitions to add and the fastest to verify on both ROCm lanes.',
+            icon: 'bi-cpu',
+            match: r => r.tier === 'kernel',
+        },
+        {
+            id: 'pr1gpu',
+            name: '1-GPU per-commit',
+            blurb: 'The lane every PR gates on, and where the coverage percentage actually moves. Ship in topic-grouped PRs of six to ten files.',
+            icon: 'bi-lightning-charge',
+            match: r => r.tier === 'core' && !r.nightly && /1-gpu/.test(r.suite || ''),
+        },
+        {
+            id: 'prmulti',
+            name: 'Multi-GPU per-commit',
+            blurb: 'Two-GPU and larger per-commit suites. Same edit, but each addition costs scarce multi-GPU runner time, so land them after the 1-GPU batch.',
+            icon: 'bi-diagram-3',
+            match: r => r.tier === 'core' && !r.nightly && !/1-gpu/.test(r.suite || ''),
+        },
+        {
+            id: 'extra',
+            name: 'Extra suites',
+            blurb: 'The extra-a family runs twice a day on schedule plus opt-in PRs with the run-ci-extra label, so a regression here is caught late. Lower priority, low cost.',
+            icon: 'bi-plus-square',
+            match: r => r.tier === 'extra',
+        },
+        {
+            id: 'nightly',
+            name: 'Nightly',
+            blurb: 'AMD already runs a larger nightly surface than NVIDIA; these are the specific NVIDIA nightly files with no AMD counterpart, mostly large model end-to-end runs.',
+            icon: 'bi-moon-stars',
+            match: r => r.nightly === true,
+        },
+    ];
+
+    const RM_BLOCKED_THEMES = [
+        [/flashinfer|fa3|fa4/i, 'FlashInfer / FA3 / FA4'],
+        [/nvfp4|fp4|mxfp8/i, 'NVFP4 / FP4 / MXFP8'],
+        [/marlin|gptq|awq/i, 'Marlin / GPTQ / AWQ'],
+        [/gb300|sm100|b200|h200|hardware-specific/i, 'NVIDIA-specific hardware suite'],
+        [/sm120/i, 'SM120 (Blackwell consumer)'],
+        [/modelopt/i, 'ModelOpt FP8'],
+        [/eagle/i, 'EAGLE speculative decode'],
+        [/mamba|nemotron/i, 'Mamba / Nemotron'],
+        [/bitsandbytes|gguf|bnb/i, 'bitsandbytes / GGUF'],
+        [/cutlass|deep_gemm|cute/i, 'CUTLASS / DeepGEMM / CuTe'],
+        [/rocm|hip|is_hip|numeric|tolerance/i, 'Known ROCm gap or numerics'],
+        [/private|gated|permission/i, 'Private / gated model'],
+        [/cuda|nvidia|nccl/i, 'CUDA-only library under test'],
+    ];
+
+    let rmRows = [];
+    let rmPhaseFilter = 'all';
+    let rmReadinessFilter = 'all';
+    let rmProjectionChart = null;
+    let rmRiskChart = null;
+
+    function rmEsc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+            { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+        ));
+    }
+
+    function rmReadiness(row) {
+        const p = (row.filename || '').toLowerCase();
+        for (const [frag, label] of RM_BLOCKED_PATTERNS) {
+            if (p.includes(frag)) return { key: 'blocked', label: 'Needs ROCm work', why: label, cls: 'danger' };
+        }
+        if (RM_READY_FOLDERS.has(row.folder)) {
+            return { key: 'ready', label: 'Register now', why: 'hardware-agnostic folder', cls: 'success' };
+        }
+        return { key: 'probe', label: 'Probe first', why: 'verify on MI325 before registering', cls: 'warning' };
+    }
+
+    function rmPhaseOf(row) {
+        for (const phase of RM_PHASES) {
+            if (phase.match(row)) return phase.id;
+        }
+        return 'nightly';
+    }
+
+    function rmTargetSuite(suite) {
+        if (!suite) return null;
+        if (RM_SUITE_MAP[suite]) return RM_SUITE_MAP[suite];
+        // nightly-8-gpu-common and the nightly-eval-text family have no
+        // one-to-one AMD twin; AMD splits them per model.
+        return null;
+    }
+
+    function rmFormatEst(seconds) {
+        if (!seconds) return '-';
+        const mins = Math.round(seconds / 60);
+        return mins >= 60 ? `${(mins / 60).toFixed(1)} h` : `${mins} m`;
+    }
+
+    function rmLoad() {
+        fetch('/api/coverage/overview')
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                rmRender(data);
+                document.getElementById('roadmap-loading').style.display = 'none';
+                document.getElementById('roadmap-content').style.display = '';
+                if (data.generated_at && window.setPageLastUpdated) {
+                    window.setPageLastUpdated(data.generated_at);
+                }
+            })
+            .catch(err => {
+                document.getElementById('roadmap-loading').style.display = 'none';
+                document.getElementById('roadmap-error').style.display = '';
+                document.getElementById('roadmap-error-msg').textContent =
+                    `Could not load the coverage snapshot: ${err.message}`;
+            });
+    }
+
+    function rmRender(data) {
+        const summary = data.summary || {};
+        const gap = Array.isArray(data.amd_gap) ? data.amd_gap : [];
+
+        rmRows = gap.map(r => {
+            const readiness = rmReadiness(r);
+            return Object.assign({}, r, {
+                phase: rmPhaseOf(r),
+                readiness: readiness,
+                target: rmTargetSuite(r.suite),
+            });
+        });
+
+        // Overlap, not the headline ratio: how many NVIDIA-comparable
+        // registrations AMD also runs. Unlike the ratio of totals, this is
+        // bounded by 100% and it is exactly what closing the gap moves.
+        const cudaEnabled = summary.cuda_enabled || 0;
+        const gapRegistrations = summary.amd_gap_registrations || rmRows.length;
+        const overlap = cudaEnabled - gapRegistrations;
+        const overlapPct = cudaEnabled ? (overlap / cudaEnabled) * 100 : 0;
+        const readyCount = rmRows.filter(r => r.readiness.key === 'ready').length;
+        const estTotal = rmRows.reduce((a, r) => a + (r.est_time || 0), 0);
+
+        document.getElementById('rm-overlap-now').textContent = `${overlapPct.toFixed(1)}%`;
+        document.getElementById('rm-overlap-now-bar').style.width =
+            `${Math.min(100, overlapPct).toFixed(1)}%`;
+        document.getElementById('rm-overlap-num').textContent = overlap;
+        document.getElementById('rm-cuda-enabled').textContent = cudaEnabled;
+        document.getElementById('rm-gap-count').textContent = rmRows.length;
+        document.getElementById('rm-ready-count').textContent = readyCount;
+        document.getElementById('rm-est-total').textContent = rmFormatEst(estTotal);
+
+        rmRenderPhases();
+        rmRenderProjection();
+        rmRenderRiskChart();
+        rmRenderFilters();
+        rmRenderWorklist();
+        rmRenderBlocked(data.amd_excluded || []);
+    }
+
+    function rmPhaseRows(phaseId) {
+        return rmRows.filter(r => r.phase === phaseId);
+    }
+
+    function rmRenderPhases() {
+        const root = document.getElementById('rm-phase-cards');
+        let remaining = rmRows.length;
+        root.innerHTML = RM_PHASES.map((phase, i) => {
+            const rows = rmPhaseRows(phase.id);
+            if (!rows.length) return '';
+            remaining -= rows.length;
+            const perCommit = rows.filter(r => !r.nightly).length;
+            const est = rows.reduce((a, r) => a + (r.est_time || 0), 0);
+            const ready = rows.filter(r => r.readiness.key === 'ready').length;
+            const probe = rows.filter(r => r.readiness.key === 'probe').length;
+            const blocked = rows.filter(r => r.readiness.key === 'blocked').length;
+            const targets = Array.from(new Set(rows.map(r => r.target).filter(Boolean)));
+            return `
+            <div class="col-xl-4 col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold"><i class="bi ${phase.icon}"></i> ${i + 1}. ${rmEsc(phase.name)}</span>
+                        <span class="badge bg-danger">${rows.length} files</span>
+                    </div>
+                    <div class="card-body py-2">
+                        <p class="small text-muted mb-2">${rmEsc(phase.blurb)}</p>
+                        <div class="d-flex gap-1 flex-wrap mb-2">
+                            ${ready ? `<span class="badge bg-success">${ready} register now</span>` : ''}
+                            ${probe ? `<span class="badge bg-warning text-dark">${probe} probe first</span>` : ''}
+                            ${blocked ? `<span class="badge bg-secondary">${blocked} needs ROCm work</span>` : ''}
+                        </div>
+                        <div class="small">
+                            <div><span class="text-muted">Per-commit files in this phase:</span>
+                                 <strong>${perCommit}</strong></div>
+                            <div><span class="text-muted">Gap remaining after it:</span>
+                                 <strong>${remaining} files</strong></div>
+                            <div><span class="text-muted">Runner time added:</span>
+                                 <strong>${rmFormatEst(est)}</strong></div>
+                            ${targets.length ? `<div class="text-muted mt-1">Targets: ${targets.map(t => `<code>${rmEsc(t)}</code>`).join(', ')}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="card-footer py-1 bg-white border-0">
+                        <button class="btn btn-sm btn-outline-danger w-100" onclick="rmSetPhase('${phase.id}')">
+                            <i class="bi bi-funnel"></i> Show these files
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function rmRenderProjection() {
+        const labels = ['Today'];
+        let remaining = rmRows.length;
+        const values = [remaining];
+        RM_PHASES.forEach((phase, i) => {
+            const rows = rmPhaseRows(phase.id);
+            if (!rows.length) return;
+            remaining -= rows.length;
+            labels.push(`after P${i + 1} ${phase.name}`);
+            values.push(remaining);
+        });
+
+        const ctx = document.getElementById('rmProjectionChart').getContext('2d');
+        if (rmProjectionChart) rmProjectionChart.destroy();
+        rmProjectionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'NVIDIA test files not run on AMD',
+                    data: values,
+                    backgroundColor: labels.map((_, i) =>
+                        i === 0 ? 'rgba(220, 53, 69, 0.8)' : 'rgba(13, 110, 253, 0.75)'),
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => `${c.parsed.y} gap files remaining` } },
+                },
+                scales: {
+                    y: { title: { display: true, text: 'Gap files remaining' }, beginAtZero: true },
+                    x: { ticks: { font: { size: 10 } } },
+                },
+            },
+        });
+    }
+
+    function rmRenderRiskChart() {
+        const counts = { ready: 0, probe: 0, blocked: 0 };
+        rmRows.forEach(r => { counts[r.readiness.key] += 1; });
+        const ctx = document.getElementById('rmRiskChart').getContext('2d');
+        if (rmRiskChart) rmRiskChart.destroy();
+        rmRiskChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Register now', 'Probe first', 'Needs ROCm work'],
+                datasets: [{
+                    data: [counts.ready, counts.probe, counts.blocked],
+                    backgroundColor: [
+                        'rgba(25, 135, 84, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(108, 117, 125, 0.8)',
+                    ],
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: c => `${c.label}: ${c.parsed} files`,
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    function rmRenderFilters() {
+        const phaseRoot = document.getElementById('rm-phase-filter');
+        const phases = [{ id: 'all', name: `All (${rmRows.length})` }].concat(
+            RM_PHASES.filter(p => rmPhaseRows(p.id).length).map((p, i) => ({
+                id: p.id,
+                name: `P${RM_PHASES.indexOf(p) + 1} ${p.name} (${rmPhaseRows(p.id).length})`,
+            }))
+        );
+        phaseRoot.innerHTML = phases.map(p => `
+            <button type="button" class="btn btn-outline-secondary ${p.id === rmPhaseFilter ? 'active' : ''}"
+                    data-rm-phase="${p.id}" onclick="rmSetPhase('${p.id}')">${rmEsc(p.name)}</button>
+        `).join('');
+
+        const readinessRoot = document.getElementById('rm-readiness-filter');
+        const options = [
+            { id: 'all', name: 'All readiness', cls: 'light' },
+            { id: 'ready', name: 'Register now', cls: 'light' },
+            { id: 'probe', name: 'Probe first', cls: 'light' },
+            { id: 'blocked', name: 'Needs ROCm work', cls: 'light' },
+        ];
+        readinessRoot.innerHTML = options.map(o => `
+            <button type="button" class="btn btn-${o.cls} ${o.id === rmReadinessFilter ? 'active' : ''}"
+                    onclick="rmSetReadiness('${o.id}')">${rmEsc(o.name)}</button>
+        `).join('');
+    }
+
+    function rmSetPhase(id) {
+        rmPhaseFilter = id;
+        rmRenderFilters();
+        rmRenderWorklist();
+        document.getElementById('rm-worklist-count').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function rmSetReadiness(id) {
+        rmReadinessFilter = id;
+        rmRenderFilters();
+        rmRenderWorklist();
+    }
+
+    function rmRenderWorklist() {
+        const term = (document.getElementById('rm-search').value || '').toLowerCase().trim();
+        const rows = rmRows.filter(r => {
+            if (rmPhaseFilter !== 'all' && r.phase !== rmPhaseFilter) return false;
+            if (rmReadinessFilter !== 'all' && r.readiness.key !== rmReadinessFilter) return false;
+            if (term && !(`${r.filename} ${r.folder}`.toLowerCase().includes(term))) return false;
+            return true;
+        }).sort((a, b) => (a.folder + a.filename).localeCompare(b.folder + b.filename));
+
+        document.getElementById('rm-worklist-count').textContent = rows.length;
+        document.getElementById('rm-worklist-empty').style.display = rows.length ? 'none' : '';
+        document.getElementById('rm-worklist-rows').innerHTML = rows.map(r => `
+            <tr>
+                <td><a href="https://github.com/sgl-project/sglang/blob/main/${rmEsc(r.filename)}" target="_blank"><code>${rmEsc(r.filename)}</code></a></td>
+                <td class="text-muted small">${rmEsc(r.folder)}</td>
+                <td class="text-muted small"><code>${rmEsc(r.suite)}</code></td>
+                <td class="small">${r.target ? `<code>${rmEsc(r.target)}</code>` : '<span class="text-muted">— no AMD suite yet</span>'}</td>
+                <td class="small">${r.nightly ? 'nightly' : 'per-commit'}</td>
+                <td class="small text-end">${rmFormatEst(r.est_time)}</td>
+                <td><span class="badge bg-${r.readiness.cls}${r.readiness.cls === 'warning' ? ' text-dark' : ''}"
+                          title="${rmEsc(r.readiness.why)}">${rmEsc(r.readiness.label)}</span></td>
+            </tr>`).join('');
+    }
+
+    function rmRenderBlocked(excluded) {
+        document.getElementById('rm-blocked-count').textContent = excluded.length;
+        const counts = new Map();
+        excluded.forEach(e => {
+            const blob = `${e.filename || ''} ${e.reason || ''}`;
+            let theme = 'Other';
+            for (const [re, label] of RM_BLOCKED_THEMES) {
+                if (re.test(blob)) { theme = label; break; }
+            }
+            counts.set(theme, (counts.get(theme) || 0) + 1);
+        });
+        const total = excluded.length || 1;
+        const rows = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+        document.getElementById('rm-blocked-rows').innerHTML = rows.map(([theme, n]) => {
+            const pct = (n / total) * 100;
+            return `
+            <tr>
+                <td>${rmEsc(theme)}</td>
+                <td class="text-end">${n}</td>
+                <td style="min-width: 160px;">
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" style="width: ${pct.toFixed(1)}%"></div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('rm-search').addEventListener('input', rmRenderWorklist);
+        rmLoad();
+    });
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

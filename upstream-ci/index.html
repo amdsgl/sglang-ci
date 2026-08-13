@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage (by runner)</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<!-- Deprecation notice -->
+<div class="alert alert-warning d-flex align-items-start mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+    <div>
+        <strong>This page is no longer updated or maintained.</strong>
+        Please use the <a href="/sglang-ci/coverage/" class="alert-link">Coverage Overview</a> page instead.
+    </div>
+</div>
+
+<!-- Header with Quick Links in banner -->
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 mb-1">
+                    <i class="bi bi-git"></i> Coverage (by runner)
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="/sglang-ci/coverage/">Coverage</a></li>
+                        <li class="breadcrumb-item active">By runner</li>
+                    </ol>
+                </nav>
+                <small class="text-muted d-block mt-1">
+                    Per-runner / per-suite breakdown built from
+                    <a href="https://github.com/michaelzhang-ai/sglang-ci/tree/log/upstream_ci/ci_report" target="_blank" rel="noopener">cron-generated CSV reports</a>.
+                    For the upstream-formatted view, see <a href="/sglang-ci/coverage/">/coverage</a>.
+                </small>
+            </div>
+            <!-- Quick Links in banner -->
+            <div class="d-flex gap-2 align-items-center">
+                <button class="btn btn-outline-secondary btn-sm" onclick="refreshReport()" id="refreshBtn" title="Regenerate coverage report from upstream">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+                <div class="btn-group btn-group-sm" role="group">
+                    <a href="https://github.com/sgl-project/sglang" target="_blank" class="btn btn-outline-primary">
+                        <i class="bi bi-github"></i> SGLang
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-test-amd.yml" target="_blank" class="btn btn-outline-danger">
+                        <i class="bi bi-play-circle"></i> AMD CI
+                    </a>
+                    <a href="https://github.com/sgl-project/sglang/actions/workflows/nightly-test-nvidia.yml" target="_blank" class="btn btn-outline-success">
+                        <i class="bi bi-play-circle"></i> NVIDIA CI
+                    </a>
+                    <a href="https://github.com/michaelzhang-ai/sglang-ci/tree/log/upstream_ci/ci_report" target="_blank" class="btn btn-outline-info">
+                        <i class="bi bi-folder2-open"></i> Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Coverage Summary Cards (4 in a row, same style) -->
+<div class="row mb-3" id="summary-cards">
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Overall Coverage</h6>
+                <h2 class="card-title" id="overall-coverage">-</h2>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar bg-primary" id="overall-progress" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-danger">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">AMD Tests</h6>
+                <h2 class="card-title text-danger" id="amd-tests">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">NVIDIA Tests</h6>
+                <h2 class="card-title text-success" id="nvidia-tests">-</h2>
+                <small class="text-muted"><a href="#exclusion-list" class="text-decoration-none" aria-label="View excluded NVIDIA tests">+<span id="excluded-count">-</span> excluded</a></small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center h-100 border-info">
+            <div class="card-body">
+                <h6 class="card-subtitle mb-2 text-muted">Report Date</h6>
+                <h5 class="card-title text-info" id="report-date">-</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Breakdown + CI Category Summary (side by side) -->
+<div class="row mb-4">
+    <!-- Left: Detailed Breakdown Table -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header bg-secondary text-white py-2">
+                <h6 class="mb-0"><i class="bi bi-list-ul"></i> Detailed Test Breakdown</h6>
+            </div>
+            <div class="card-body py-2">
+                <div id="breakdown-loading" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status"></div>
+                </div>
+                <div id="breakdown-table" style="display: none;">
+                    <table class="table table-sm table-striped table-hover mb-0" id="testTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Test Category</th>
+                                <th class="text-center">AMD</th>
+                                <th class="text-center">NVIDIA</th>
+                                <th class="text-center">Coverage</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="test-rows">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Right: CI Category Summary Chart -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white py-2">
+                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> CI Category Summary</h6>
+            </div>
+            <div class="card-body py-2 d-flex align-items-center justify-content-center">
+                <div id="category-loading" class="text-center py-2">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span class="ms-2">Loading...</span>
+                </div>
+                <div id="category-summary" style="display: none; width: 100%;">
+                    <canvas id="categoryChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Coverage Trends -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Coverage Trends (<span id="trends-days-label">Last 30 Days</span>)</h5>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Trend period">
+                    <button type="button" class="btn btn-light active" id="btn-30-days" onclick="loadTrends(30)">30 Days</button>
+                    <button type="button" class="btn btn-outline-light" id="btn-90-days" onclick="loadTrends(90)">90 Days</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="trends-loading" class="text-center py-4">
+                    <div class="spinner-border text-info" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="trends-chart" style="display: none;">
+                    <canvas id="trendsChart" height="100"></canvas>
+                </div>
+                <div id="trends-empty" style="display: none;">
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Not enough historical data for trends. More reports needed.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Nightly test details now shown in dropdown within the Detailed Test Breakdown table -->
+
+<!-- Recently Added Tests -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0 d-inline"><i class="bi bi-file-earmark-plus"></i> Recently Added Tests</h5>
+                    <span class="badge bg-secondary ms-2" id="recent-test-count">...</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="form-check form-switch mb-0 d-flex align-items-center">
+                        <input class="form-check-input" type="checkbox" id="showModifiedToggle" onchange="renderRecentTests()">
+                        <label class="form-check-label small ms-1" for="showModifiedToggle">Show modified</label>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-secondary active" data-test-days="7" onclick="loadRecentTests(7)">7d</button>
+                        <button class="btn btn-outline-secondary" data-test-days="30" onclick="loadRecentTests(30)">30d</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="recent-tests-loading" class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm text-primary"></div>
+                    <small class="text-muted ms-2">Loading recent test changes...</small>
+                </div>
+                <div id="recent-tests-content" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NVIDIA Tests Excluded from AMD Coverage -->
+<div class="row mb-4" id="exclusion-list">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center"
+                 data-bs-toggle="collapse" data-bs-target="#exclusionTable"
+                 aria-expanded="true" aria-controls="exclusionTable"
+                 style="cursor: pointer;">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    NVIDIA Tests Excluded from AMD Coverage (<span id="exclusion-count">-</span> tests)
+                </h5>
+                <small><i class="bi bi-chevron-up"></i> Click to collapse</small>
+            </div>
+            <div id="exclusionTable" class="collapse show">
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <p class="text-muted mb-2">
+                        <small>These NVIDIA tests are excluded from coverage calculation due to missing libraries,
+                        hardware requirements, or ROCm limitations. Coverage % = AMD Tests / (NVIDIA Total - Excluded)</small>
+                    </p>
+                    <table class="table table-sm table-striped" style="font-size: 0.8rem;">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Test File</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exclusion-rows">
+                            <tr><td colspan="2" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-warning bg-opacity-25">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        Categories: FlashInfer/FA3 (no ROCm support), Hardware-specific (B200/H100/GB300),
+                        Quantization (ModelOpt/GPTQ/AWQ), Private models, ROCm compiler issues
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+    const githubRepo = 'michaelzhang-ai/sglang-ci';
+    let categoryChart = null;
+    let trendsChart = null;
+    let nvExclusionCount = 0;  // Will be populated from exclusion API
+
+    // Load available dates and show latest report
+    fetch('/api/upstream-ci/available-dates')
+        .then(response => response.json())
+        .then(data => {
+            const availableDates = data.dates || [];
+            if (availableDates.length === 0) {
+                showNoDataMessage();
+                return;
+            }
+
+            loadReport(availableDates[0]);
+            loadTestDetails();
+            loadTrends();
+            loadExclusions();
+            loadTrendsTooltipData();
+        })
+        .catch(error => {
+            console.error('Error loading available dates:', error);
+            showNoDataMessage();
+        });
+
+    function refreshReport() {
+        const btn = document.getElementById('refreshBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating...';
+
+        fetch('/api/upstream-ci/refresh', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Report generation failed: ' + (data.error || data.stderr_tail || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+                alert('Failed to refresh: ' + err.message);
+            });
+    }
+
+    function showNoDataMessage() {
+        document.getElementById('category-loading').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> No upstream CI reports available yet.
+                <br><small>Reports are generated daily. Check back later.</small>
+            </div>
+        `;
+        document.getElementById('breakdown-loading').style.display = 'none';
+        document.getElementById('trends-loading').style.display = 'none';
+    }
+
+    function formatDateApi(dateStr) {
+        return dateStr.replace(/-/g, '');
+    }
+
+    function formatDateDisplay(dateStr) {
+        if (dateStr.length === 8) {
+            return `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`;
+        }
+        return dateStr;
+    }
+
+    function loadReport(dateStr) {
+        const dateFormatted = formatDateApi(dateStr);
+        document.getElementById('report-date').textContent = formatDateDisplay(dateFormatted);
+
+        fetch(`/api/upstream-ci/report/${dateFormatted}`)
+            .then(response => {
+                if (!response.ok) throw new Error('Report not found');
+                return response.json();
+            })
+            .then(data => {
+                renderReport(data);
+                setPageLastUpdated(data.generated_at || data.last_updated);
+            })
+            .catch(error => {
+                console.error('Error loading report:', error);
+                document.getElementById('category-loading').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Error loading report: ${error.message}
+                    </div>
+                `;
+            });
+    }
+
+    function renderReport(data) {
+        const rows = data.data || [];
+
+        // Parse the CSV data
+        let totalAmd = 0, totalNvidia = 0;
+        let categories = [];
+        let details = [];
+        let inDetails = false;
+
+        rows.forEach(row => {
+            const category = row['Test Category'] || '';
+            const amd = parseInt(row['AMD # of Tests']) || 0;
+            const nvidia = parseInt(row['Nvidia # of Tests']) || 0;
+            const coverage = row['AMD Coverage (%)'] || 'N/A';
+
+            // Skip comment/header rows
+            if (category.startsWith('#') || category.startsWith('##')) {
+                if (category.includes('Detailed')) inDetails = true;
+                return;
+            }
+
+            if (category === 'Total') {
+                totalAmd = amd;
+                totalNvidia = nvidia;
+                return;
+            }
+
+            if (category.includes('CI (total')) {
+                categories.push({ category, amd, nvidia, coverage });
+            } else if (category && !category.startsWith('#')) {
+                details.push({ category, amd, nvidia, coverage });
+            }
+        });
+
+        // Update summary cards
+        const overallCoverage = totalNvidia > 0 ? Math.round((totalAmd / totalNvidia) * 100) : 0;
+        document.getElementById('overall-coverage').textContent = `${overallCoverage}%`;
+        document.getElementById('overall-progress').style.width = `${Math.min(overallCoverage, 100)}%`;
+        document.getElementById('amd-tests').textContent = totalAmd;
+        document.getElementById('nvidia-tests').textContent = totalNvidia;
+
+        // Render category chart
+        renderCategoryChart(categories);
+
+        // Render details table
+        renderDetailsTable(details);
+    }
+
+    function renderCategoryChart(categories) {
+        document.getElementById('category-loading').style.display = 'none';
+        document.getElementById('category-summary').style.display = 'block';
+
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+
+        if (categoryChart) {
+            categoryChart.destroy();
+        }
+
+        // Filter out Per-Commit CI (same as Per-PR CI) and rename Per-PR to "Per-PR/Commit CI"
+        const filteredCategories = categories.filter(c => !c.category.includes('Per-Commit'));
+        const labels = filteredCategories.map(c => {
+            let label = c.category.replace(' (total test count)', '');
+            if (label === 'Per-PR CI') label = 'Per-PR/Commit CI';
+            return label;
+        });
+        const amdData = filteredCategories.map(c => c.amd);
+        const nvidiaData = filteredCategories.map(c => c.nvidia);
+
+        // NVIDIA excluded tests (from AMD_EXCLUSION_REASONS) - only for Per-PR/Commit CI
+        // Uses nvExclusionCount from exclusions API (all tests AMD cannot run)
+        const nvidiaExcludedData = labels.map(label =>
+            label === 'Per-PR/Commit CI' ? nvExclusionCount : 0
+        );
+
+        categoryChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'AMD Tests',
+                        data: amdData,
+                        backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        borderWidth: 1,
+                        stack: 'amd'
+                    },
+                    {
+                        label: 'NVIDIA Tests (AMD potentially to support)',
+                        data: nvidiaData,
+                        backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        borderWidth: 1,
+                        stack: 'nvidia'
+                    },
+                    {
+                        label: 'NVIDIA Exclusive Tests (AMD incompatible)',
+                        data: nvidiaExcludedData,
+                        backgroundColor: 'rgba(128, 128, 128, 0.6)',
+                        borderColor: 'rgba(128, 128, 128, 1)',
+                        borderWidth: 1,
+                        stack: 'nvidia'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                if (context[0].dataset.label.includes('Exclusive')) {
+                                    return 'Tests AMD cannot run due to\nhardware/library limitations';
+                                }
+                                return '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        title: { display: true, text: 'Number of Tests' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Store detailed test data globally. `diff` (added in PR #178) holds
+    // per-category {shared, cuda_only:[{file,reason,category}], amd_only:[{file}]}.
+    let testDetailsData = { cuda: {}, amd: {}, diff: {} };
+    let testDetailsLoaded = false;
+    let lastRenderedDetails = null;  // Store last rendered details for re-rendering
+
+    async function loadTestDetails() {
+        try {
+            const response = await fetch('/api/upstream-ci/test-details');
+            const data = await response.json();
+            testDetailsData = data;
+            testDetailsLoaded = true;
+            console.log('Loaded test details:', Object.keys(data.cuda).length, 'CUDA suites,', Object.keys(data.amd).length, 'AMD suites');
+            // Re-render table if we have data to show dropdowns
+            if (lastRenderedDetails) {
+                renderDetailsTable(lastRenderedDetails);
+            }
+        } catch (err) {
+            console.error('Error loading test details:', err);
+            testDetailsLoaded = true;
+        }
+    }
+
+    function renderDetailsTable(details) {
+        lastRenderedDetails = details;  // Store for re-rendering when test details load
+
+        document.getElementById('breakdown-loading').style.display = 'none';
+        document.getElementById('breakdown-table').style.display = 'block';
+
+        const tbody = document.getElementById('test-rows');
+        tbody.innerHTML = '';
+
+        // Categorize tests into PR Tests and Nightly Tests
+        const prTests = [];
+        const nightlyTests = [];
+
+        details.forEach(row => {
+            const cat = row.category.toLowerCase();
+            // Skip frontend tests (not meaningful)
+            if (cat.includes('frontend')) {
+                return;
+            }
+            // Only nightly-unique-files goes under Nightly/Periodic Tests
+            // All other tests (unit-test, sgl-kernel, multimodal, performance, accuracy) are PR/Commit tests
+            if (cat.includes('nightly-unique-files')) {
+                nightlyTests.push(row);
+            } else {
+                prTests.push(row);
+            }
+        });
+
+        let rowIndex = 0;
+
+        function getRowHtml(row) {
+            const coverage = row.coverage;
+            let coverageNum = parseInt(coverage) || 0;
+            let statusBadge = '';
+            let rowClass = '';
+
+            if (coverage === 'N/A' || (row.amd === 0 && row.nvidia === 0)) {
+                statusBadge = '<span class="badge bg-secondary">N/A</span>';
+                rowClass = '';
+            } else if (coverageNum >= 100) {
+                statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Covered</span>';
+                rowClass = 'table-success';
+            } else if (coverageNum >= 50) {
+                statusBadge = '<span class="badge bg-warning text-dark"><i class="bi bi-dash-circle"></i> Partial</span>';
+                rowClass = 'table-warning';
+            } else if (coverageNum > 0) {
+                statusBadge = '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Low</span>';
+                rowClass = 'table-danger';
+            } else {
+                statusBadge = '<span class="badge bg-dark"><i class="bi bi-x-circle"></i> Missing</span>';
+                rowClass = 'table-danger';
+            }
+
+            const currentIndex = rowIndex++;
+            const collapseId = `collapse-${currentIndex}`;
+
+            // Get detailed tests for this category
+            const cudaTests = testDetailsData.cuda[row.category] || [];
+            const amdTests = testDetailsData.amd[row.category] || [];
+            const hasDetails = cudaTests.length > 0 || amdTests.length > 0;
+
+            let mainRow = `
+                <tr class="${rowClass}" style="cursor: ${hasDetails ? 'pointer' : 'default'};"
+                    ${hasDetails ? `data-bs-toggle="collapse" data-bs-target="#${collapseId}"` : ''}>
+                    <td>
+                        ${hasDetails ? '<i class="bi bi-chevron-right me-1 collapse-icon"></i>' : '<span class="me-3"></span>'}
+                        <strong>${row.category}</strong>
+                    </td>
+                    <td class="text-center">${row.amd}</td>
+                    <td class="text-center">${row.nvidia}</td>
+                    <td class="text-center">
+                        <div class="progress" style="height: 20px; min-width: 80px;">
+                            <div class="progress-bar ${coverageNum >= 100 ? 'bg-success' : coverageNum >= 50 ? 'bg-warning' : 'bg-danger'}"
+                                 role="progressbar" style="width: ${Math.min(coverageNum, 100)}%">
+                                ${coverage}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-center">${statusBadge}</td>
+                </tr>
+            `;
+
+            // Add collapsible detail row if there are tests
+            if (hasDetails) {
+                mainRow += renderTestDiffPanel(row, collapseId, cudaTests, amdTests);
+            }
+
+            return mainRow;
+        }
+
+        // ── Per-category dropdown content ─────────────────────────────
+        // Renders a 3-column diff (shared / NVIDIA-only with reason /
+        // AMD-only) plus a fallback 2-column AMD/NVIDIA list view if the
+        // backend doesn't expose a `diff` payload yet.
+        function renderTestDiffPanel(row, collapseId, cudaTests, amdTests) {
+            const diff = (testDetailsData.diff || {})[row.category];
+
+            // Helper: badge + tooltip for a "why AMD doesn't run this" reason.
+            // Maps the server-side `category` to a Bootstrap badge color.
+            function reasonBadge(category) {
+                if (!category) return '';
+                const palette = {
+                    'Hardware':         'bg-info text-dark',
+                    'FlashInfer/FA3':   'bg-danger',
+                    'CUDA-only':        'bg-secondary',
+                    'EAGLE':            'bg-purple',
+                    'Quantization':     'bg-warning text-dark',
+                    'VLM/ROCm':         'bg-warning text-dark',
+                    'Disaggregation':   'bg-secondary',
+                    'Private Model':    'bg-dark',
+                    'NVIDIA-only':      'bg-secondary',
+                    'Exclusion list':   'bg-info',
+                };
+                const cls = palette[category] || 'bg-secondary';
+                return `<span class="badge ${cls} me-1" style="font-size: 0.7rem">${category}</span>`;
+            }
+
+            function escHtml(s) {
+                return String(s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+
+            // ── Path A: backend returned a per-category diff with reasons ──
+            if (diff) {
+                const shared = diff.shared || [];
+                const cudaOnly = diff.cuda_only || [];
+                const amdOnly = diff.amd_only || [];
+
+                // Summarize "why AMD can't / doesn't run these" by category.
+                const reasonCounts = {};
+                let cudaOnlyKnown = 0;
+                cudaOnly.forEach(t => {
+                    if (t.category) {
+                        reasonCounts[t.category] = (reasonCounts[t.category] || 0) + 1;
+                        cudaOnlyKnown++;
+                    }
+                });
+                const cudaOnlyUnknown = cudaOnly.length - cudaOnlyKnown;
+                const summaryChips = Object.entries(reasonCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, n]) => `${reasonBadge(cat)}<small class="text-muted me-2">${n}</small>`)
+                    .join('');
+
+                const sharedList = shared.length
+                    ? shared.map(t => `<code class="text-secondary">${escHtml(t)}</code>`).join('<br>')
+                    : '<span class="text-muted fst-italic">None</span>';
+
+                const cudaOnlyList = cudaOnly.length
+                    ? cudaOnly.map(t => {
+                        const file = `<code class="text-primary">${escHtml(t.file)}</code>`;
+                        if (t.reason) {
+                            return `<div class="mb-1">${file} ${reasonBadge(t.category)}<small class="text-muted">${escHtml(t.reason)}</small></div>`;
+                        }
+                        return `<div class="mb-1">${file} <span class="badge bg-success-subtle text-success-emphasis me-1" style="font-size: 0.7rem">Potentially supportable</span><small class="text-muted">No known blocker - not yet wired into AMD CI</small></div>`;
+                    }).join('')
+                    : '<span class="text-muted fst-italic">None</span>';
+
+                const amdOnlyList = amdOnly.length
+                    ? amdOnly.map(t => `<code class="text-danger">${escHtml(t.file)}</code>`).join('<br>')
+                    : '<span class="text-muted fst-italic">None</span>';
+
+                return `
+                    <tr class="collapse" id="${collapseId}">
+                        <td colspan="5" class="p-0">
+                            <div class="bg-light p-3" style="font-size: 0.85rem;">
+                                <div class="mb-2 d-flex flex-wrap gap-3 align-items-center">
+                                    <span class="badge bg-secondary">Shared <strong>${shared.length}</strong></span>
+                                    <span class="badge bg-primary">NVIDIA-only <strong>${cudaOnly.length}</strong></span>
+                                    <span class="badge bg-danger">AMD-only <strong>${amdOnly.length}</strong></span>
+                                    <span class="text-muted ms-auto" style="font-size: 0.8rem">
+                                        ${cudaOnlyKnown > 0 ? `<i class="bi bi-shield-exclamation"></i> ${cudaOnlyKnown} NVIDIA-only blocked by:` : ''}
+                                        ${summaryChips}
+                                        ${cudaOnlyUnknown > 0 ? `<span class="badge bg-success-subtle text-success-emphasis">${cudaOnlyUnknown} potentially supportable</span>` : ''}
+                                    </span>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong class="text-secondary">
+                                            <i class="bi bi-arrow-left-right"></i> Shared (${shared.length})
+                                        </strong>
+                                        <div class="mt-1 ps-2" style="max-height: 260px; overflow-y: auto;">
+                                            ${sharedList}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <strong class="text-primary">
+                                            <i class="bi bi-nvidia"></i> NVIDIA-only (${cudaOnly.length})
+                                        </strong>
+                                        <small class="text-muted d-block">Why AMD doesn't run each test:</small>
+                                        <div class="mt-1 ps-2" style="max-height: 260px; overflow-y: auto;">
+                                            ${cudaOnlyList}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <strong class="text-danger">
+                                            <i class="bi bi-gpu-card"></i> AMD-only (${amdOnly.length})
+                                        </strong>
+                                        <div class="mt-1 ps-2" style="max-height: 260px; overflow-y: auto;">
+                                            ${amdOnlyList}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            // ── Path B: legacy 2-column fallback when diff isn't loaded yet ──
+            const amdTestsList = amdTests.length > 0
+                ? amdTests.map(t => `<code class="text-success">${escHtml(t)}</code>`).join('<br>')
+                : '<span class="text-muted">No tests in test/registered/</span>';
+            const cudaTestsList = cudaTests.length > 0
+                ? cudaTests.map(t => `<code class="text-primary">${escHtml(t)}</code>`).join('<br>')
+                : '<span class="text-muted">No tests in test/registered/</span>';
+
+            return `
+                <tr class="collapse" id="${collapseId}">
+                    <td colspan="5" class="p-0">
+                        <div class="bg-light p-3" style="font-size: 0.85rem;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong class="text-danger"><i class="bi bi-gpu-card"></i> AMD Tests (${row.amd} total):</strong>
+                                    <div class="mt-1 ps-2" style="max-height: 200px; overflow-y: auto;">
+                                        ${amdTestsList}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong class="text-success"><i class="bi bi-nvidia"></i> NVIDIA Tests (${row.nvidia} total):</strong>
+                                    <div class="mt-1 ps-2" style="max-height: 200px; overflow-y: auto;">
+                                        ${cudaTestsList}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Add PR Tests section header
+        if (prTests.length > 0) {
+            // Calculate PR tests totals
+            let prAmdTotal = 0, prNvidiaTotal = 0;
+            prTests.forEach(row => {
+                prAmdTotal += row.amd;
+                prNvidiaTotal += row.nvidia;
+            });
+            const prCoverage = prNvidiaTotal > 0 ? Math.round((prAmdTotal / prNvidiaTotal) * 100) : 0;
+
+            tbody.innerHTML += `
+                <tr class="table-primary">
+                    <td colspan="5"><strong><i class="bi bi-git"></i> Per-PR/Commit Tests</strong></td>
+                </tr>
+            `;
+            prTests.forEach(row => {
+                tbody.innerHTML += getRowHtml(row);
+            });
+            // Add PR Tests summary row
+            tbody.innerHTML += `
+                <tr class="table-secondary" style="font-weight: bold;">
+                    <td class="text-end"><em>Per-PR/Commit Subtotal</em></td>
+                    <td class="text-center">${prAmdTotal}</td>
+                    <td class="text-center">${prNvidiaTotal}</td>
+                    <td class="text-center">
+                        <div class="progress" style="height: 20px; min-width: 80px;">
+                            <div class="progress-bar ${prCoverage >= 100 ? 'bg-success' : prCoverage >= 50 ? 'bg-warning' : 'bg-danger'}"
+                                 role="progressbar" style="width: ${Math.min(prCoverage, 100)}%">
+                                ${prCoverage}%
+                            </div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+            `;
+            // Add NV exclusive tests row (tests AMD cannot run)
+            tbody.innerHTML += `
+                <tr class="table-light" style="font-style: italic; color: #6c757d;">
+                    <td class="text-end"><small><a href="#exclusion-list" class="text-decoration-none text-muted">NV Exclusive (AMD incompatible)</a></small></td>
+                    <td class="text-center">-</td>
+                    <td class="text-center"><span id="nv-exclusive-count">${nvExclusionCount}</span></td>
+                    <td class="text-center"><small class="text-muted">N/A</small></td>
+                    <td class="text-center"><span class="badge bg-secondary"><i class="bi bi-dash-circle"></i> Excluded</span></td>
+                </tr>
+            `;
+        }
+
+        // Add Nightly Tests section header
+        if (nightlyTests.length > 0) {
+            // Calculate Nightly tests totals
+            let nightlyAmdTotal = 0, nightlyNvidiaTotal = 0;
+            nightlyTests.forEach(row => {
+                nightlyAmdTotal += row.amd;
+                nightlyNvidiaTotal += row.nvidia;
+            });
+            const nightlyCoverage = nightlyNvidiaTotal > 0 ? Math.round((nightlyAmdTotal / nightlyNvidiaTotal) * 100) : 0;
+
+            tbody.innerHTML += `
+                <tr class="table-info">
+                    <td colspan="5"><strong><i class="bi bi-moon-stars"></i> Nightly/Periodic Tests</strong></td>
+                </tr>
+            `;
+            nightlyTests.forEach(row => {
+                tbody.innerHTML += getRowHtml(row);
+            });
+            // Add Nightly Tests summary row
+            tbody.innerHTML += `
+                <tr class="table-secondary" style="font-weight: bold;">
+                    <td class="text-end"><em>Nightly/Periodic Subtotal</em></td>
+                    <td class="text-center">${nightlyAmdTotal}</td>
+                    <td class="text-center">${nightlyNvidiaTotal}</td>
+                    <td class="text-center">
+                        <div class="progress" style="height: 20px; min-width: 80px;">
+                            <div class="progress-bar ${nightlyCoverage >= 100 ? 'bg-success' : nightlyCoverage >= 50 ? 'bg-warning' : 'bg-danger'}"
+                                 role="progressbar" style="width: ${Math.min(nightlyCoverage, 100)}%">
+                                ${nightlyCoverage}%
+                            </div>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+            `;
+        }
+
+        // Add collapse icon rotation handlers
+        document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(el => {
+            const targetId = el.getAttribute('data-bs-target');
+            const target = document.querySelector(targetId);
+            if (target) {
+                target.addEventListener('show.bs.collapse', () => {
+                    el.querySelector('.collapse-icon')?.classList.replace('bi-chevron-right', 'bi-chevron-down');
+                });
+                target.addEventListener('hide.bs.collapse', () => {
+                    el.querySelector('.collapse-icon')?.classList.replace('bi-chevron-down', 'bi-chevron-right');
+                });
+            }
+        });
+    }
+
+    function loadTrends(days = 30) {
+        // Update button states
+        const btn30 = document.getElementById('btn-30-days');
+        const btn90 = document.getElementById('btn-90-days');
+        if (days === 30) {
+            btn30.className = 'btn btn-light active';
+            btn90.className = 'btn btn-outline-light';
+        } else {
+            btn30.className = 'btn btn-outline-light';
+            btn90.className = 'btn btn-light active';
+        }
+
+        // Update label
+        document.getElementById('trends-days-label').textContent = `Last ${days} Days`;
+
+        // Show loading state
+        document.getElementById('trends-loading').style.display = 'block';
+        document.getElementById('trends-chart').style.display = 'none';
+        document.getElementById('trends-empty').style.display = 'none';
+
+        fetch(`/api/upstream-ci/trends?days=${days}`)
+            .then(response => response.json())
+            .then(data => {
+                const trends = data.trends || [];
+
+                document.getElementById('trends-loading').style.display = 'none';
+
+                if (trends.length < 2) {
+                    document.getElementById('trends-empty').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('trends-chart').style.display = 'block';
+                renderTrendsChart(trends);
+            })
+            .catch(error => {
+                console.error('Error loading trends:', error);
+                document.getElementById('trends-loading').style.display = 'none';
+                document.getElementById('trends-empty').style.display = 'block';
+            });
+    }
+
+    // Map of YYYY-MM-DD -> {added, removed, modified, plus_registered} where
+    // each value is a list of test/registered/ files. Populated from
+    // recentTestData (loaded by loadTrendsTooltipData) and consumed by the
+    // trends-chart tooltip to show "what changed on this day".
+    let recentChangesByDay = {};
+    function rebuildRecentChangesByDay(rows) {
+        const idx = {};
+        (rows || []).forEach(c => {
+            const d = c.date;
+            if (!d) return;
+            if (!idx[d]) idx[d] = { added: [], removed: [], modified: [], plus_registered: [] };
+            const file = (c.file || '').replace('test/registered/', '');
+            const entry = { file, platform: c.platform || '' };
+            if (c.status === 'added' || c.status === 'renamed_in') {
+                idx[d].added.push(entry);
+            } else if (c.status === 'removed' || c.status === 'renamed_out') {
+                // Renamed-out files functionally drop their dashboard
+                // counts so list them under "removed" for the trend-day
+                // tooltip — the per-row table still shows the proper
+                // "moved out" badge.
+                idx[d].removed.push(entry);
+            } else if (c.status === 'modified' && c.has_new_registration) {
+                idx[d].plus_registered.push(entry);
+            } else if (c.status === 'modified') {
+                idx[d].modified.push(entry);
+            }
+        });
+        recentChangesByDay = idx;
+    }
+
+    // The user-facing "Recently Added Tests" widget loads 7 or 30 days; the
+    // trends-chart tooltip uses the 30-day file because that's what the static
+    // GitHub Pages snapshot ships (build_gh_pages -> update_coverage only
+    // writes recent-test-changes-days-{7,30}.json). Asking for ?days=90 used
+    // to 404 on the static site and leave the tooltip stuck on
+    // "(loading test changes…)" forever.
+    let trendsTooltipLoaded = false;
+    function loadTrendsTooltipData() {
+        if (trendsTooltipLoaded) return Promise.resolve();
+        return fetch('/api/upstream-ci/recent-test-changes?days=30')
+            .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+            .then(data => {
+                rebuildRecentChangesByDay(data.changes || []);
+                trendsTooltipLoaded = true;
+                // Re-render the chart so the tooltip closure picks up the new index.
+                if (trendsChart && trendsChart.data && trendsChart.data.labels.length) {
+                    trendsChart.update('none');
+                }
+            })
+            .catch(() => {
+                // Mark loaded even on failure so the tooltip stops saying
+                // "loading…" and switches to "no commits on this day".
+                trendsTooltipLoaded = true;
+                if (trendsChart && trendsChart.data && trendsChart.data.labels.length) {
+                    trendsChart.update('none');
+                }
+            });
+    }
+
+    function renderTrendsChart(trends) {
+        const ctx = document.getElementById('trendsChart').getContext('2d');
+
+        if (trendsChart) {
+            trendsChart.destroy();
+        }
+
+        // Map chart x-index -> ISO date (YYYY-MM-DD) so the tooltip can look
+        // up changes in recentChangesByDay.
+        const isoDates = trends.map(t => {
+            const d = t.date || '';
+            return d.length === 8 ? `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}` : d;
+        });
+        const labels = trends.map(t => formatDateDisplay(t.date));
+        const coverageData = trends.map(t => t.coverage || 0);
+        const amdTestsData = trends.map(t => t.amd_tests || 0);
+        const nvidiaTestsData = trends.map(t => t.nvidia_tests || 0);
+
+        // Day-over-day deltas (today - previous reporting day). The first
+        // point has no prior day, so its delta is null. Used only by the
+        // tooltip ("AMD Tests: 232 (+4)") - the dedicated bar overlay was
+        // removed because it overlapped the line series.
+        function deltas(series) {
+            return series.map((v, i) => i === 0 ? null : v - series[i - 1]);
+        }
+        const amdDelta = deltas(amdTestsData);
+        const nvidiaDelta = deltas(nvidiaTestsData);
+
+        trendsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'AMD Coverage (%)',
+                        data: coverageData,
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y',
+                        borderWidth: 2,
+                    },
+                    {
+                        label: 'AMD Tests',
+                        data: amdTestsData,
+                        borderColor: 'rgba(220, 53, 69, 1)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.2)',
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                        borderWidth: 2,
+                    },
+                    {
+                        label: 'NVIDIA Tests',
+                        data: nvidiaTestsData,
+                        borderColor: 'rgba(40, 167, 69, 1)',
+                        backgroundColor: 'rgba(40, 167, 69, 0.2)',
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                        borderWidth: 2,
+                    },
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false },
+                    tooltip: {
+                        // Footer file list can run several lines.
+                        bodyFont: { size: 12 },
+                        footerFont: { size: 11, weight: 'normal' },
+                        footerSpacing: 2,
+                        footerMarginTop: 6,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                const v = context.parsed.y;
+                                if (v === null || v === undefined) return null;
+                                if (context.dataset.yAxisID === 'y') {
+                                    return `${label}: ${v.toFixed(1)}%`;
+                                }
+                                // Absolute test counts: also show today's delta inline
+                                // so users can read both at a glance.
+                                const idx = context.dataIndex;
+                                const ds = context.dataset.label || '';
+                                let delta = null;
+                                if (ds === 'AMD Tests') delta = amdDelta[idx];
+                                else if (ds === 'NVIDIA Tests') delta = nvidiaDelta[idx];
+                                if (delta === null || delta === undefined || delta === 0) {
+                                    return `${label}: ${v}`;
+                                }
+                                const sign = delta > 0 ? '+' : '';
+                                return `${label}: ${v} (${sign}${delta})`;
+                            },
+                            // Footer = "what changed on this day" pulled from
+                            // recent-test-changes (test/registered/ commits).
+                            // Note: this is the *registration* delta, which can
+                            // diverge from the trend-line delta when a single
+                            // file registers/unregisters multiple test cases or
+                            // when hardware-specific suites are excluded from
+                            // counts.
+                            footer: function(items) {
+                                if (!items || !items.length) return '';
+                                const idx = items[0].dataIndex;
+                                const isoDate = isoDates[idx];
+                                const changes = recentChangesByDay[isoDate];
+                                if (!changes) {
+                                    if (!trendsTooltipLoaded) {
+                                        return ['', '(loading test changes…)'];
+                                    }
+                                    return ['', 'No test/registered/ commits on this day.'];
+                                }
+                                const MAX_PER_GROUP = 6;
+                                function formatGroup(symbol, files) {
+                                    if (!files.length) return [];
+                                    const head = files.slice(0, MAX_PER_GROUP)
+                                        .map(f => `  ${symbol} ${f.file}`);
+                                    if (files.length > MAX_PER_GROUP) {
+                                        head.push(`  … +${files.length - MAX_PER_GROUP} more`);
+                                    }
+                                    return head;
+                                }
+                                const lines = [''];
+                                const total =
+                                    changes.added.length +
+                                    changes.removed.length +
+                                    changes.plus_registered.length +
+                                    changes.modified.length;
+                                lines.push(`Changes (${total} file${total === 1 ? '' : 's'}):`);
+                                lines.push(...formatGroup('+', changes.added));
+                                lines.push(...formatGroup('−', changes.removed));
+                                lines.push(...formatGroup('★', changes.plus_registered));
+                                // Show modified only if nothing more interesting happened,
+                                // to keep the tooltip focused on signal.
+                                if (!changes.added.length && !changes.removed.length && !changes.plus_registered.length) {
+                                    lines.push(...formatGroup('~', changes.modified));
+                                }
+                                return lines;
+                            },
+                        },
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        max: 100,
+                        title: { display: true, text: 'Coverage (%)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        title: { display: true, text: 'Test Count' },
+                        grid: {
+                            drawOnChartArea: false
+                        }
+                    },
+                }
+            }
+        });
+    }
+
+    function loadExclusions() {
+        fetch('/api/upstream-ci/exclusions')
+            .then(response => response.json())
+            .then(data => {
+                const count = data.count || 0;
+                const exclusions = data.exclusions || [];
+
+                // Store globally for chart and table
+                nvExclusionCount = count;
+
+                document.getElementById('exclusion-count').textContent = count;
+                document.getElementById('excluded-count').textContent = count;
+
+                // Update NV exclusive count in table if already rendered
+                const nvExclusiveEl = document.getElementById('nv-exclusive-count');
+                if (nvExclusiveEl) {
+                    nvExclusiveEl.textContent = count;
+                }
+
+                // Update chart if already rendered
+                if (categoryChart && categoryChart.data) {
+                    const excludedDataset = categoryChart.data.datasets.find(d => d.label.includes('Exclusive'));
+                    if (excludedDataset) {
+                        excludedDataset.data = categoryChart.data.labels.map(label =>
+                            label === 'Per-PR/Commit CI' ? count : 0
+                        );
+                        categoryChart.update();
+                    }
+                }
+
+                const tbody = document.getElementById('exclusion-rows');
+                if (exclusions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No exclusions defined</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = exclusions.map(exc => {
+                    // Categorize by reason
+                    let badgeClass = 'bg-secondary';
+                    let category = '';
+                    const reason = exc.reason.toLowerCase();
+
+                    if (reason.includes('flashinfer') || reason.includes('fa3')) {
+                        badgeClass = 'bg-danger';
+                        category = 'FlashInfer/FA3';
+                    } else if (reason.includes('gpu') || reason.includes('b200') || reason.includes('h100') || reason.includes('gb300')) {
+                        badgeClass = 'bg-info';
+                        category = 'Hardware';
+                    } else if (reason.includes('quantization') || reason.includes('rocm') || reason.includes('modelopt') || reason.includes('gptq') || reason.includes('awq')) {
+                        badgeClass = 'bg-warning text-dark';
+                        category = 'Quantization';
+                    } else if (reason.includes('private') || reason.includes('model')) {
+                        badgeClass = 'bg-dark';
+                        category = 'Private Model';
+                    } else if (reason.includes('eagle')) {
+                        badgeClass = 'bg-purple';
+                        category = 'EAGLE';
+                    }
+
+                    return `
+                        <tr>
+                            <td><code>${exc.file}</code></td>
+                            <td>
+                                ${category ? `<span class="badge ${badgeClass} me-1">${category}</span>` : ''}
+                                <small>${exc.reason}</small>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            })
+            .catch(error => {
+                console.error('Error loading exclusions:', error);
+                document.getElementById('exclusion-rows').innerHTML =
+                    '<tr><td colspan="2" class="text-center text-danger">Error loading exclusions</td></tr>';
+            });
+    }
+
+    // Keep the exclusion-list header chevron and label in sync with the
+    // collapse state (expanded by default, but user can still toggle).
+    (function setupExclusionToggle() {
+        const target = document.getElementById('exclusionTable');
+        const header = document.querySelector('[data-bs-target="#exclusionTable"]');
+        if (!target || !header) return;
+        const label = header.querySelector('small');
+        function setExpanded(expanded) {
+            if (!label) return;
+            label.innerHTML = expanded
+                ? '<i class="bi bi-chevron-up"></i> Click to collapse'
+                : '<i class="bi bi-chevron-down"></i> Click to expand';
+        }
+        target.addEventListener('show.bs.collapse', () => setExpanded(true));
+        target.addEventListener('hide.bs.collapse', () => setExpanded(false));
+    })();
+
+    // ── Recently Added Tests ────────────────────────────────────────
+    let recentTestData = [];
+    let recentTestDays = 7;
+    // Bump the v-suffix when the row schema changes so old cached entries
+    // (missing test_category / category_bucket) get refetched on first load.
+    const RT_CACHE_KEY = 'recent_tests_v4_';
+    const RT_TODAY = new Date().toISOString().slice(0, 10);
+
+    function loadRecentTests(days) {
+        recentTestDays = days;
+        document.querySelectorAll('[data-test-days]').forEach(b =>
+            b.classList.toggle('active', parseInt(b.dataset.testDays) === days));
+
+        // Try cache first
+        try {
+            const raw = localStorage.getItem(RT_CACHE_KEY + days);
+            if (raw) {
+                const cached = JSON.parse(raw);
+                if (cached._date === RT_TODAY && cached.changes && cached.changes.length > 0) {
+                    recentTestData = cached.changes;
+                    document.getElementById('recent-tests-loading').style.display = 'none';
+                    document.getElementById('recent-tests-content').style.display = 'block';
+                    renderRecentTests();
+                    return;
+                }
+                // Stale cache: show it immediately for fast paint, then refetch
+                // the full window in the background and replace.
+                //
+                // NOTE: we must refetch the SAME window (?days=${days}), not
+                // ?days=1. The static GitHub Pages snapshot only ships
+                // recent-test-changes-days-{7,30}.json, so a ?days=1 request
+                // 404s and the silent .catch() left the widget frozen on the
+                // previous day's cached count (e.g. stuck at "32 files").
+                if (cached.changes && cached.changes.length > 0) {
+                    recentTestData = cached.changes;
+                    document.getElementById('recent-tests-loading').style.display = 'none';
+                    document.getElementById('recent-tests-content').style.display = 'block';
+                    renderRecentTests();
+                    fetch(`/api/upstream-ci/recent-test-changes?days=${days}`)
+                        .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+                        .then(fresh => {
+                            recentTestData = fresh.changes || recentTestData;
+                            recentTestData.sort((a, b) => b.date.localeCompare(a.date));
+                            renderRecentTests();
+                            try { localStorage.setItem(RT_CACHE_KEY + days, JSON.stringify({ _date: RT_TODAY, changes: recentTestData })); } catch {}
+                        })
+                        .catch(() => {});
+                    return;
+                }
+            }
+        } catch {}
+
+        // No cache — full fetch
+        document.getElementById('recent-tests-loading').style.display = 'block';
+        document.getElementById('recent-tests-content').style.display = 'none';
+
+        fetch(`/api/upstream-ci/recent-test-changes?days=${days}`)
+            .then(r => r.json())
+            .then(data => {
+                recentTestData = data.changes || [];
+                try { localStorage.setItem(RT_CACHE_KEY + days, JSON.stringify({ _date: RT_TODAY, changes: recentTestData })); } catch {}
+                document.getElementById('recent-tests-loading').style.display = 'none';
+                document.getElementById('recent-tests-content').style.display = 'block';
+                renderRecentTests();
+            })
+            .catch(() => {
+                document.getElementById('recent-tests-loading').innerHTML =
+                    '<small class="text-muted">Failed to load recent test changes.</small>';
+            });
+    }
+
+    function renderRecentTests() {
+        const showModified = document.getElementById('showModifiedToggle').checked;
+        const changes = showModified
+            ? recentTestData
+            : recentTestData.filter(c => c.status === 'added' || c.status === 'removed' || c.has_new_registration);
+
+        document.getElementById('recent-test-count').textContent = changes.length + ' files';
+
+        if (!changes.length) {
+            document.getElementById('recent-tests-content').innerHTML =
+                '<div class="text-center text-muted py-3">No matching test file changes.</div>';
+            return;
+        }
+
+        const prGroups = {};
+        changes.forEach(c => {
+            const key = c.pr_number ? `PR #${c.pr_number}` : c.commit_msg;
+            if (!prGroups[key]) prGroups[key] = {
+                pr_number: c.pr_number, pr_url: c.pr_url, date: c.date,
+                author: c.author, commit_msg: c.commit_msg, files: []
+            };
+            prGroups[key].files.push(c);
+            if (c.date > prGroups[key].date) prGroups[key].date = c.date;
+        });
+
+        const sorted = Object.values(prGroups).sort((a, b) => b.date.localeCompare(a.date));
+
+        function platBadge(p) {
+            if (p === 'amd') return '<span class="badge bg-danger" style="font-size:0.7rem">AMD</span>';
+            if (p === 'nvidia') return '<span class="badge bg-success" style="font-size:0.7rem">NVIDIA</span>';
+            if (p === 'both') return '<span class="badge bg-danger" style="font-size:0.7rem">AMD</span><span class="badge bg-success ms-1" style="font-size:0.7rem">NVIDIA</span>';
+            return '<span class="badge bg-info text-dark" style="font-size:0.7rem">Shared</span>';
+        }
+        function statusBadge(c) {
+            if (c.status === 'added') return '<span class="badge bg-success">added</span>';
+            if (c.status === 'removed') return '<span class="badge bg-danger">removed</span>';
+            // Renames in/out of test/registered/ are functionally additions or
+            // removals of dashboard counts even though the file isn't gone
+            // upstream — surface that explicitly so reviewers don't read a
+            // big "−25" delta as a deletion.
+            if (c.status === 'renamed_out') {
+                const dest = c.current_path
+                    ? `<small class="text-muted ms-1">→ ${c.current_path.replace(/^test\//, 'test/')}</small>`
+                    : '';
+                return `<span class="badge bg-secondary">moved out</span>${dest}`;
+            }
+            if (c.status === 'renamed_in') {
+                const src = c.previous_filename
+                    ? `<small class="text-muted ms-1">from ${c.previous_filename.replace(/^test\//, 'test/')}</small>`
+                    : '';
+                return `<span class="badge bg-info text-dark">moved in</span>${src}`;
+            }
+            if (c.status === 'renamed') {
+                const src = c.previous_filename
+                    ? `<small class="text-muted ms-1">from ${c.previous_filename.replace(/^test\/registered\//, '')}</small>`
+                    : '';
+                return `<span class="badge bg-info text-dark">renamed</span>${src}`;
+            }
+            if (c.status === 'modified' && c.has_new_registration) return '<span class="badge bg-primary">+registered</span>';
+            if (c.status === 'modified') return '<span class="badge bg-warning text-dark">modified</span>';
+            return `<span class="badge bg-secondary">${c.status}</span>`;
+        }
+        // Render a compact ±delta of dashboard counts changed by the
+        // commit. ``coverage_impact`` is {amd_per_commit, amd_nightly,
+        // cuda_per_commit, cuda_nightly, amd_excluded} with non-zero
+        // entries only.
+        function coverageImpactCell(c) {
+            const imp = c.coverage_impact || {};
+            const labels = {
+                amd_per_commit: { txt: 'AMD per-commit', cls: 'bg-danger' },
+                amd_nightly:    { txt: 'AMD nightly',    cls: 'bg-danger' },
+                cuda_per_commit:{ txt: 'NV per-commit',  cls: 'bg-success' },
+                cuda_nightly:   { txt: 'NV nightly',     cls: 'bg-success' },
+                amd_excluded:   { txt: 'AMD-excluded NV',cls: 'bg-secondary' },
+            };
+            const parts = [];
+            for (const k of Object.keys(labels)) {
+                if (!(k in imp)) continue;
+                const n = imp[k];
+                if (n === 0) continue;
+                const sign = n > 0 ? '+' : '';
+                const tone = n > 0 ? labels[k].cls : 'bg-warning text-dark';
+                parts.push(`<span class="badge ${tone} me-1" style="font-size:0.7rem" title="${labels[k].txt}">${sign}${n} ${labels[k].txt}</span>`);
+            }
+            if (!parts.length) return '<span class="text-muted small">no count change</span>';
+            return parts.join('');
+        }
+        // Render the "Test Category" cell linking the file's CI bucket
+        // (Per-PR/Commit or Nightly/Periodic) and its specific Detailed Test
+        // Breakdown row (stage-test-1-gpu, ..., nightly-unique-files).
+        function categoryBadge(c) {
+            const bucket = c.category_bucket;
+            const cat = c.test_category;
+            if (!bucket && !cat) {
+                return '<span class="text-muted small">—</span>';
+            }
+            const bucketCls = bucket === 'Nightly/Periodic'
+                ? 'bg-info text-dark'
+                : 'bg-primary';
+            const bucketLabel = bucket || 'Unknown';
+            const catLabel = cat
+                ? `<small class="text-muted ms-1">${cat}</small>`
+                : '';
+            return `<span class="badge ${bucketCls}" style="font-size:0.7rem">${bucketLabel}</span>${catLabel}`;
+        }
+
+        let html = '<div class="table-responsive" style="max-height:500px;"><table class="table table-sm mb-0" style="font-size:0.85rem;">';
+        html += `<thead class="table-light sticky-top">
+            <tr>
+                <th>File</th>
+                <th>Status</th>
+                <th>Platform</th>
+                <th>Test Category</th>
+                <th title="Per-file ± delta this commit applied to dashboard counts.">Coverage Impact</th>
+            </tr>
+        </thead>`;
+        sorted.forEach(pr => {
+            const prLink = pr.pr_url
+                ? `<a href="${pr.pr_url}" target="_blank" class="fw-bold">#${pr.pr_number}</a>`
+                : '';
+            const title = pr.commit_msg.replace(/#\d+\)?$/, '').replace(/\($/,'').trim();
+            const authorLink = `<a href="https://github.com/${pr.author}" target="_blank">${pr.author}</a>`;
+
+            // Aggregate per-PR coverage impact so the group header shows
+            // the net effect of the whole PR at a glance.
+            const prImpact = {};
+            pr.files.forEach(c => {
+                const imp = c.coverage_impact || {};
+                for (const k of Object.keys(imp)) {
+                    prImpact[k] = (prImpact[k] || 0) + imp[k];
+                }
+            });
+            const prImpactStr = Object.entries(prImpact)
+                .filter(([, n]) => n !== 0)
+                .map(([k, n]) => {
+                    const sign = n > 0 ? '+' : '';
+                    const label = ({
+                        amd_per_commit: 'AMD per-commit',
+                        amd_nightly: 'AMD nightly',
+                        cuda_per_commit: 'NV per-commit',
+                        cuda_nightly: 'NV nightly',
+                        amd_excluded: 'AMD-excluded NV',
+                    }[k]) || k;
+                    return `${sign}${n} ${label}`;
+                }).join(', ');
+            const prImpactBadge = prImpactStr
+                ? `<span class="ms-2 small text-muted" title="Net change to dashboard counts">net: ${prImpactStr}</span>`
+                : '';
+
+            html += `<tr class="table-light">
+                <td colspan="5">
+                    <span class="text-muted">${pr.date}</span>
+                    ${prLink}
+                    <span class="ms-1">${title}</span>
+                    <span class="text-muted ms-2">by ${authorLink}</span>
+                    <span class="badge bg-secondary ms-1">${pr.files.length} file${pr.files.length > 1 ? 's' : ''}</span>
+                    ${prImpactBadge}
+                </td>
+            </tr>`;
+
+            pr.files.forEach(c => {
+                // Renamed-out rows reference the OLD path under
+                // test/registered/; link to the parent commit's blob since
+                // main no longer has that file.
+                const shortFile = c.file.replace('test/registered/', '');
+                const blobRef = c.status === 'renamed_out' && c.parent_sha
+                    ? c.parent_sha
+                    : 'main';
+                html += `<tr>
+                    <td class="ps-4"><small><a href="https://github.com/sgl-project/sglang/blob/${blobRef}/${c.file}" target="_blank">${shortFile}</a></small></td>
+                    <td>${statusBadge(c)}</td>
+                    <td>${platBadge(c.platform)}</td>
+                    <td>${categoryBadge(c)}</td>
+                    <td>${coverageImpactCell(c)}</td>
+                </tr>`;
+            });
+        });
+        html += '</table></div>';
+        document.getElementById('recent-tests-content').innerHTML = html;
+    }
+
+    loadRecentTests(7);
+
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

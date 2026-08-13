@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Dashboard - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .chart-card { min-height: 340px; }
+    .chart-container { position: relative; height: 280px; }
+    .filter-bar { background: #f8f9fa; border-bottom: 1px solid #dee2e6; }
+    .tab-pane { padding-top: 1rem; }
+    .metric-card { text-align: center; }
+    .metric-card .fs-3 { font-weight: 700; }
+    .data-table { font-size: 0.85rem; }
+    .data-table th { cursor: pointer; user-select: none; white-space: nowrap; }
+    .data-table th:hover { background-color: #e9ecef; }
+    .model-badge { font-size: 0.75rem; }
+    .hw-badge { font-size: 0.7rem; }
+    .trend-chart-container { position: relative; height: 240px; }
+    .no-data-msg { padding: 3rem 0; color: #6c757d; }
+    .ci-card { margin-bottom: 1.25rem; }
+    .ci-chart-container { position: relative; height: 220px; }
+    .ci-metric-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .ci-metric-pill { font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; }
+    .ci-metric-pill.up { background: #d1e7dd; color: #0f5132; }
+    .ci-metric-pill.down { background: #f8d7da; color: #842029; }
+    .ci-metric-pill.flat { background: #e2e3e5; color: #41464b; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<div class="row mb-3">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <h1 class="display-6"><i class="bi bi-speedometer2"></i> Benchmark Dashboard</h1>
+                <p class="text-muted mb-0">Nightly performance benchmarks — throughput, latency &amp; ITL by model and batch size</p>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <small class="text-muted" id="cache-status"></small>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadData(true)" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-secondary active" data-days="7" onclick="changeDays(7)">7d</button>
+                    <button class="btn btn-outline-secondary" data-days="14" onclick="changeDays(14)">14d</button>
+                    <button class="btn btn-outline-secondary" data-days="30" onclick="changeDays(30)">30d</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading -->
+<div id="main-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Fetching benchmark data from nightly perf runs...</p>
+</div>
+<div id="main-error" style="display: none;"></div>
+
+<!-- Dashboard -->
+<div id="dashboard" style="display: none;">
+
+    <!-- Summary cards -->
+    <div class="row g-3 mb-4" id="summary-cards"></div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tradeoffTab" type="button">
+                <i class="bi bi-speedometer2"></i> Performance
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#ciTab" type="button">
+                <i class="bi bi-graph-up"></i> Trends
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#compareTab" type="button">
+                <i class="bi bi-arrow-left-right"></i> AMD vs NVIDIA
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dataTab" type="button">
+                <i class="bi bi-table"></i> Data
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        <!-- Performance Tab (throughput vs latency per-model scatter) -->
+        <div class="tab-pane fade show active" id="tradeoffTab">
+            <div class="card my-3">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-center" style="font-size:0.85rem;">
+                        <label class="fw-bold mb-0">Model</label>
+                        <select id="perf-modelSelect" class="form-select form-select-sm" style="width:auto;min-width:180px;" onchange="onPerfFilter()"></select>
+                        <label class="fw-bold mb-0">Hardware</label>
+                        <select id="perf-hwSelect" class="form-select form-select-sm" style="width:auto;min-width:90px;" onchange="onPerfFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Deployment</label>
+                        <select id="perf-deploymentSelect" class="form-select form-select-sm" style="width:auto;min-width:130px;" onchange="onPerfFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">ROCm</label>
+                        <select id="perf-rocmSelect" class="form-select form-select-sm" style="width:auto;min-width:100px;" onchange="onPerfFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Precision</label>
+                        <select id="perf-precisionSelect" class="form-select form-select-sm" style="width:auto;min-width:90px;" onchange="onPerfFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">ISL/OSL</label>
+                        <select id="perf-islOslSelect" class="form-select form-select-sm" style="width:auto;min-width:100px;" onchange="onPerfFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Date</label>
+                        <select id="perf-dateSelect" class="form-select form-select-sm" style="width:auto;min-width:120px;" onchange="onPerfFilter()"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div id="tradeoff-metric-btns" class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary active" data-tradeoff-y="latency_s" data-tradeoff-ylabel="Latency (s)">Throughput vs Latency</button>
+                    <button class="btn btn-outline-primary" data-tradeoff-y="itl_ms" data-tradeoff-ylabel="ITL (ms)">Throughput vs ITL</button>
+                </div>
+            </div>
+            <div id="tradeoff-no-data" class="text-center no-data-msg" style="display:none;">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                <p class="mt-2">No data for throughput vs latency chart.</p>
+            </div>
+            <div id="tradeoff-cards" class="row g-3"></div>
+        </div>
+
+        <!-- Trends Tab (per-model time-series tracking) -->
+        <div class="tab-pane fade" id="ciTab">
+            <div class="card my-3">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-center" style="font-size:0.85rem;">
+                        <label class="fw-bold mb-0">Model</label>
+                        <select id="trends-modelSelect" class="form-select form-select-sm" style="width:auto;min-width:180px;" onchange="onTrendsFilter()"></select>
+                        <label class="fw-bold mb-0">Hardware</label>
+                        <select id="trends-hwSelect" class="form-select form-select-sm" style="width:auto;min-width:90px;" onchange="onTrendsFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Deployment</label>
+                        <select id="trends-deploymentSelect" class="form-select form-select-sm" style="width:auto;min-width:130px;" onchange="onTrendsFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">ROCm</label>
+                        <select id="trends-rocmSelect" class="form-select form-select-sm" style="width:auto;min-width:100px;" onchange="onTrendsFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Precision</label>
+                        <select id="trends-precisionSelect" class="form-select form-select-sm" style="width:auto;min-width:90px;" onchange="onTrendsFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">ISL/OSL</label>
+                        <select id="trends-islOslSelect" class="form-select form-select-sm" style="width:auto;min-width:100px;" onchange="onTrendsFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Date</label>
+                        <select id="trends-dateSelect" class="form-select form-select-sm" style="width:auto;min-width:120px;" onchange="onTrendsFilter()"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div id="ci-metric-btns" class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary active" data-ci-metric="total_tput_per_gpu">Total Tput/GPU</button>
+                    <button class="btn btn-outline-primary" data-ci-metric="output_throughput">Output Throughput</button>
+                    <button class="btn btn-outline-primary" data-ci-metric="input_throughput">Input Throughput</button>
+                    <button class="btn btn-outline-primary" data-ci-metric="latency_s">Latency</button>
+                    <button class="btn btn-outline-primary" data-ci-metric="itl_ms">ITL</button>
+                </div>
+            </div>
+            <div id="ci-no-data" class="text-center no-data-msg" style="display:none;">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                <p class="mt-2">No trend data. Try a larger date range.</p>
+            </div>
+            <div id="ci-cards" class="row g-3"></div>
+        </div>
+
+        <!-- AMD vs NVIDIA Comparison Tab -->
+        <div class="tab-pane fade" id="compareTab">
+            <div id="compare-no-data" class="text-center no-data-msg" style="display:none;">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i>
+                <p class="mt-2">No overlapping models between AMD and NVIDIA for comparison.</p>
+            </div>
+            <div id="compare-cards" class="row g-3"></div>
+        </div>
+
+        <!-- Data Tab -->
+        <div class="tab-pane fade" id="dataTab">
+            <div class="card my-3">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-center" style="font-size:0.85rem;">
+                        <label class="fw-bold mb-0">Model</label>
+                        <select id="data-modelSelect" class="form-select form-select-sm" style="width:auto;min-width:180px;" onchange="onDataFilter()"></select>
+                        <label class="fw-bold mb-0">Hardware</label>
+                        <select id="data-hwSelect" class="form-select form-select-sm" style="width:auto;min-width:90px;" onchange="onDataFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Deployment</label>
+                        <select id="data-deploymentSelect" class="form-select form-select-sm" style="width:auto;min-width:130px;" onchange="onDataFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">ROCm</label>
+                        <select id="data-rocmSelect" class="form-select form-select-sm" style="width:auto;min-width:100px;" onchange="onDataFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Precision</label>
+                        <select id="data-precisionSelect" class="form-select form-select-sm" style="width:auto;min-width:90px;" onchange="onDataFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">ISL/OSL</label>
+                        <select id="data-islOslSelect" class="form-select form-select-sm" style="width:auto;min-width:100px;" onchange="onDataFilter()"><option value="all">All</option></select>
+                        <label class="fw-bold mb-0">Date</label>
+                        <select id="data-dateSelect" class="form-select form-select-sm" style="width:auto;min-width:120px;" onchange="onDataFilter()"></select>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0">Raw Performance Data</h6>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="exportCSV()" title="Export CSV">
+                        <i class="bi bi-download"></i> CSV
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 600px;">
+                        <table class="table table-sm table-hover table-striped data-table mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th onclick="sortTable(0)">Date <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(1)">Model <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(2)">Variant <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(3)">Hardware <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(4)">Deployment <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(5)" class="text-end">GPUs <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(6)" class="text-end" title="Batch size, or request concurrency for the disaggregated nightly">Batch / Conc <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(7)" class="text-end">Input Len <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(8)" class="text-end">Latency (s) <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(9)" class="text-end">Input Tput <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(10)" class="text-end">Output Tput <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(11)" class="text-end">Total Tput/GPU <i class="bi bi-chevron-expand"></i></th>
+                                    <th onclick="sortTable(12)" class="text-end">ITL (ms) <i class="bi bi-chevron-expand"></i></th>
+                                    <th class="text-center">Link</th>
+                                </tr>
+                            </thead>
+                            <tbody id="data-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+let currentDays = 7;
+let rawData = null;
+let ciCharts = {};
+let sortCol = 0, sortAsc = false;
+
+const CHART_COLORS = [
+    '#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1',
+    '#20c997', '#d63384', '#0dcaf0', '#ffc107', '#6c757d',
+];
+
+const CI_METRICS = {
+    total_tput_per_gpu: { label: 'Total Tput/GPU', unit: 'tok/s/gpu' },
+    output_throughput: { label: 'Output Throughput', unit: 'tok/s' },
+    input_throughput: { label: 'Input Throughput', unit: 'tok/s' },
+    latency_s: { label: 'Latency', unit: 's' },
+    itl_ms: { label: 'ITL', unit: 'ms' },
+};
+let ciMetric = 'total_tput_per_gpu';
+
+function getMetricVal(point, metric) {
+    if (metric === 'total_tput_per_gpu') {
+        const ng = point._num_gpus || 8;
+        return ((point.input_throughput || 0) + (point.output_throughput || 0)) / ng;
+    }
+    return point[metric];
+}
+let tradeoffY = 'latency_s';
+let tradeoffYLabel = 'Latency (s)';
+
+const SERIES_ORDER = ['DeepSeek', 'Qwen', 'GLM', 'Kimi', 'MiniMax', 'Grok', 'Llama', 'Other'];
+function modelFamily(name) {
+    if (/deepseek/i.test(name)) return 'DeepSeek';
+    if (/qwen/i.test(name)) return 'Qwen';
+    if (/glm/i.test(name)) return 'GLM';
+    if (/kimi/i.test(name)) return 'Kimi';
+    if (/minimax/i.test(name)) return 'MiniMax';
+    if (/grok/i.test(name)) return 'Grok';
+    if (/llama/i.test(name)) return 'Llama';
+    return 'Other';
+}
+
+const DEPLOYMENT_LABELS = { 'single-node': 'Single Node', 'disaggregated': 'Disaggregated' };
+
+// Entries published before the payload carried the field are classified from
+// the workflow that produced them, so history stays filterable.
+function deploymentOf(r) {
+    if (r.deployment) return r.deployment;
+    return /disagg/i.test(r.job_name || '') ? 'disaggregated' : 'single-node';
+}
+
+function deploymentLabel(value) {
+    return DEPLOYMENT_LABELS[value] || value;
+}
+
+function normalizeVariant(v) {
+    if (!v) return '';
+    return v.replace(/-mi\d+x$/i, '');
+}
+function modelKey(r) {
+    const nv = normalizeVariant(r.variant);
+    return r.model_name + (nv ? ` (${nv})` : '');
+}
+
+function modelDropdownPriority(name) {
+    if (/deepseek-v4-pro/i.test(name)) return 0;
+    if (/deepseek-v4-flash/i.test(name)) return 1;
+    return 2;
+}
+
+function modelVersionParts(name) {
+    const patterns = [
+        /deepseek-(?:v|r)(\d+(?:\.\d+)*)/i,
+        /qwen-?(\d+(?:\.\d+)*)/i,
+        /glm-?(\d+(?:\.\d+)*)/i,
+        /kimi-?k(\d+(?:\.\d+)*)/i,
+        /minimax-m(\d+(?:\.\d+)*)/i,
+        /grok-?(\d+(?:\.\d+)*)/i,
+        /llama-?(\d+(?:\.\d+)*)/i,
+    ];
+    for (const pattern of patterns) {
+        const match = name.match(pattern);
+        if (match) return match[1].split('.').map(Number);
+    }
+    return [];
+}
+
+function compareModelsNewestFirst(a, b) {
+    const av = modelVersionParts(a);
+    const bv = modelVersionParts(b);
+    if (!av.length && bv.length) return 1;
+    if (av.length && !bv.length) return -1;
+    for (let i = 0; i < Math.max(av.length, bv.length); i++) {
+        const diff = (bv[i] || 0) - (av[i] || 0);
+        if (diff) return diff;
+    }
+    return modelDropdownPriority(a) - modelDropdownPriority(b) || a.localeCompare(b);
+}
+
+function fmtLen(n) { return n >= 1024 ? (n / 1024) + 'K' : String(n); }
+
+function inferPrecision(modelName, variant) {
+    const full = (modelName + ' ' + (variant || '')).toLowerCase();
+    if (/mxfp4/.test(full)) return 'MXFP4';
+    if (/w4a8|int4|int-4/.test(full)) return 'INT4';
+    if (/fp4|w4a16/.test(full)) return 'FP4';
+    if (/kv.?fp8/.test(full)) return 'FP8';
+    if (/int8|w8a8/.test(full)) return 'INT8';
+    if (/bf16|bfloat16/.test(full)) return 'BF16';
+    return 'FP8';
+}
+
+const CACHE_KEY_PREFIX = 'bench_perf_';
+const today = new Date().toISOString().slice(0, 10);
+
+function getCacheKey() { return CACHE_KEY_PREFIX + currentDays; }
+
+function readCache() {
+    try {
+        const raw = localStorage.getItem(getCacheKey());
+        if (!raw) return null;
+        return JSON.parse(raw);
+    } catch { return null; }
+}
+
+function writeCache(data) {
+    try {
+        const entry = { _ts: Date.now(), _date: today, data };
+        localStorage.setItem(getCacheKey(), JSON.stringify(entry));
+    } catch {}
+}
+
+function mergeNewData(cached, fresh) {
+    const existingKeys = new Set(
+        cached.perf_runs.map(r => `${r.date}|${r.model_name}|${r.variant}|${r.hardware}|${r.platform}|${r.job_name}`)
+    );
+    let added = 0;
+    for (const r of fresh.perf_runs) {
+        const key = `${r.date}|${r.model_name}|${r.variant}|${r.hardware}|${r.platform}|${r.job_name}`;
+        if (!existingKeys.has(key)) {
+            cached.perf_runs.push(r);
+            existingKeys.add(key);
+            added++;
+        }
+    }
+    if (fresh.generated_at) cached.generated_at = fresh.generated_at;
+    if (added > 0) {
+        cached.perf_runs.sort((a, b) => b.date.localeCompare(a.date) || a.model_name.localeCompare(b.model_name));
+        const modelSet = new Set(cached.models);
+        fresh.models.forEach(m => modelSet.add(m));
+        cached.models = [...modelSet].sort();
+        const dateSet = new Set(cached.dates);
+        fresh.dates.forEach(d => dateSet.add(d));
+        cached.dates = [...dateSet].sort().reverse();
+    }
+    return { merged: cached, added };
+}
+
+function showDashboard(data) {
+    rawData = data;
+    setPageLastUpdated(data.generated_at);
+    document.getElementById('main-loading').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    populateAllFilters(data);
+    onPerfFilter();
+    onTrendsFilter();
+    renderComparison(data.perf_runs || []);
+    onDataFilter();
+    renderSummary(getLatestRuns(getFilteredRuns('perf')));
+}
+
+function updateCacheStatus(msg) {
+    const el = document.getElementById('cache-status');
+    if (el) el.innerHTML = msg;
+}
+
+const TAB_HASH_MAP = {
+    '#performance': '#tradeoffTab',
+    '#trends': '#ciTab',
+    '#compare': '#compareTab',
+    '#data': '#dataTab',
+};
+const TAB_ID_TO_HASH = Object.fromEntries(
+    Object.entries(TAB_HASH_MAP).map(([h, id]) => [id, h])
+);
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadData(false);
+    document.querySelectorAll('[data-ci-metric]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-ci-metric]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            ciMetric = btn.dataset.ciMetric;
+            onTrendsFilter();
+        });
+    });
+    document.querySelectorAll('[data-tradeoff-y]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-tradeoff-y]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            tradeoffY = btn.dataset.tradeoffY;
+            tradeoffYLabel = btn.dataset.tradeoffYlabel;
+            onPerfFilter();
+        });
+    });
+
+    document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', () => {
+            const target = tab.getAttribute('data-bs-target');
+            const hash = TAB_ID_TO_HASH[target];
+            if (hash) history.replaceState(null, '', hash);
+        });
+    });
+    const hash = location.hash;
+    const targetTab = TAB_HASH_MAP[hash];
+    if (targetTab) {
+        const btn = document.querySelector(`[data-bs-target="${targetTab}"]`);
+        if (btn) new bootstrap.Tab(btn).show();
+    }
+});
+
+function changeDays(d) {
+    currentDays = d;
+    document.querySelectorAll('[data-days]').forEach(btn =>
+        btn.classList.toggle('active', parseInt(btn.dataset.days) === d)
+    );
+    loadData(false);
+}
+
+function loadData(force) {
+    document.getElementById('main-error').style.display = 'none';
+
+    if (!force) {
+        const cached = readCache();
+        if (cached && cached.data && cached._date === today) {
+            updateCacheStatus('<i class="bi bi-database"></i> cached');
+            showDashboard(cached.data);
+            return;
+        }
+        if (cached && cached.data && cached.data.perf_runs && cached.data.perf_runs.length > 0) {
+            showDashboard(cached.data);
+            updateCacheStatus('<i class="bi bi-hourglass-split"></i> updating...');
+            fetch(`/api/benchmark/perf-data?days=2`)
+                .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                .then(fresh => {
+                    const { merged, added } = mergeNewData(cached.data, fresh);
+                    writeCache(merged);
+                    showDashboard(merged);
+                    updateCacheStatus(`<i class="bi bi-cloud-check"></i> +${added} new`);
+                })
+                .catch(() => {
+                    fetch(`/api/benchmark/perf-data?days=${currentDays}`)
+                        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                        .then(data => {
+                            writeCache(data);
+                            showDashboard(data);
+                            updateCacheStatus('<i class="bi bi-cloud-check"></i> live');
+                        })
+                        .catch(() => {
+                            updateCacheStatus('<i class="bi bi-database"></i> cached (update failed)');
+                        });
+                });
+            return;
+        }
+    }
+
+    document.getElementById('main-loading').style.display = 'block';
+    document.getElementById('dashboard').style.display = 'none';
+
+    fetch(`/api/benchmark/perf-data?days=${currentDays}`)
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(data => {
+            writeCache(data);
+            showDashboard(data);
+            updateCacheStatus('<i class="bi bi-cloud-check"></i> live');
+        })
+        .catch(err => {
+            document.getElementById('main-loading').style.display = 'none';
+            document.getElementById('main-error').innerHTML =
+                `<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Failed to load benchmark data: ${err.message}</div>`;
+            document.getElementById('main-error').style.display = 'block';
+        });
+}
+
+const TAB_PREFIXES = ['perf', 'trends', 'data'];
+
+function populateOneFilterBar(prefix, data) {
+    const modelSel = document.getElementById(`${prefix}-modelSelect`);
+    const hwSel = document.getElementById(`${prefix}-hwSelect`);
+    const deploymentSel = document.getElementById(`${prefix}-deploymentSelect`);
+    const rocmSel = document.getElementById(`${prefix}-rocmSelect`);
+    const precisionSel = document.getElementById(`${prefix}-precisionSelect`);
+    const islOslSel = document.getElementById(`${prefix}-islOslSelect`);
+    const dateSel = document.getElementById(`${prefix}-dateSelect`);
+
+    const prevModel = modelSel.value;
+    const prevHw = hwSel.value;
+    const prevDeployment = deploymentSel.value;
+    const prevRocm = rocmSel.value;
+    const prevPrecision = precisionSel.value;
+    const prevIslOsl = islOslSel.value;
+    const prevDate = dateSel.value;
+
+    const amdRuns = (data.perf_runs || []).filter(r => r.platform === 'AMD');
+    const modelSet = new Set();
+    amdRuns.forEach(r => {
+        modelSet.add(modelKey(r));
+    });
+    const MODEL_GROUPS = [
+        { label: 'DeepSeek', match: m => /deepseek/i.test(m) },
+        { label: 'Qwen', match: m => /qwen/i.test(m) },
+        { label: 'GLM', match: m => /glm/i.test(m) },
+        { label: 'Kimi', match: m => /kimi/i.test(m) },
+        { label: 'MiniMax', match: m => /minimax/i.test(m) },
+        { label: 'Grok', match: m => /grok/i.test(m) },
+        { label: 'Llama', match: m => /llama/i.test(m) },
+        { label: 'Other', match: () => true },
+    ];
+    const grouped = {};
+    MODEL_GROUPS.forEach(g => { grouped[g.label] = []; });
+    [...modelSet].sort(compareModelsNewestFirst).forEach(m => {
+        const grp = MODEL_GROUPS.find(g => g.match(m));
+        grouped[grp.label].push(m);
+    });
+    modelSel.innerHTML = '<option value="all">All Models</option>';
+    MODEL_GROUPS.forEach(g => {
+        if (!grouped[g.label].length) return;
+        modelSel.innerHTML += `<optgroup label="${g.label}">` +
+            grouped[g.label].map(m => `<option value="${m}">${m}</option>`).join('') +
+            '</optgroup>';
+    });
+    if (prevModel && [...modelSel.options].some(o => o.value === prevModel)) modelSel.value = prevModel;
+
+    const hwSet = new Set();
+    amdRuns.forEach(r => hwSet.add(r.hardware));
+    hwSel.innerHTML = '<option value="all">All</option>';
+    [...hwSet].sort().forEach(hw => { hwSel.innerHTML += `<option value="${hw}">${hw}</option>`; });
+    if (prevHw && [...hwSel.options].some(o => o.value === prevHw)) hwSel.value = prevHw;
+
+    const deploymentSet = new Set();
+    amdRuns.forEach(r => deploymentSet.add(deploymentOf(r)));
+    deploymentSel.innerHTML = '<option value="all">All</option>';
+    // Single node first: it is the bulk of the suite, and the disaggregated
+    // nightly is the exception being compared against it.
+    ['single-node', 'disaggregated'].forEach(v => {
+        if (deploymentSet.has(v)) {
+            deploymentSel.innerHTML += `<option value="${v}">${deploymentLabel(v)}</option>`;
+            deploymentSet.delete(v);
+        }
+    });
+    [...deploymentSet].sort().forEach(v => {
+        deploymentSel.innerHTML += `<option value="${v}">${deploymentLabel(v)}</option>`;
+    });
+    if (prevDeployment && [...deploymentSel.options].some(o => o.value === prevDeployment)) {
+        deploymentSel.value = prevDeployment;
+    }
+
+    const rocmSet = new Set();
+    amdRuns.forEach(r => { if (r.rocm_version) rocmSet.add(r.rocm_version); });
+    rocmSel.innerHTML = '<option value="all">All</option>';
+    [...rocmSet].sort().forEach(v => { rocmSel.innerHTML += `<option value="${v}">${v}</option>`; });
+    if (prevRocm && [...rocmSel.options].some(o => o.value === prevRocm)) {
+        rocmSel.value = prevRocm;
+    } else if (!prevRocm || prevRocm === 'all') {
+        if ([...rocmSel.options].some(o => o.value === 'ROCm 7.0')) rocmSel.value = 'ROCm 7.0';
+    }
+
+    const precisionSet = new Set();
+    amdRuns.forEach(r => precisionSet.add(inferPrecision(r.model_name, r.variant)));
+    precisionSel.innerHTML = '<option value="all">All</option>';
+    [...precisionSet].sort().forEach(v => { precisionSel.innerHTML += `<option value="${v}">${v}</option>`; });
+    if (prevPrecision && [...precisionSel.options].some(o => o.value === prevPrecision)) precisionSel.value = prevPrecision;
+
+    const islOslSet = new Set();
+    amdRuns.forEach(r => {
+        const osl = r.output_len || 512;
+        r.metrics.forEach(m => {
+            const isl = m.input_len || 0;
+            if (isl > 0) islOslSet.add(`${fmtLen(isl)}/${fmtLen(osl)}`);
+        });
+    });
+    islOslSel.innerHTML = '<option value="all">All</option>';
+    [...islOslSet].sort().forEach(v => { islOslSel.innerHTML += `<option value="${v}">${v}</option>`; });
+    if (prevIslOsl && [...islOslSel.options].some(o => o.value === prevIslOsl)) islOslSel.value = prevIslOsl;
+
+    const dateSet = new Set();
+    amdRuns.forEach(r => dateSet.add(r.date));
+    const sortedDates = [...dateSet].sort().reverse();
+    dateSel.innerHTML = '<option value="all">All Dates</option>';
+    sortedDates.forEach(d => { dateSel.innerHTML += `<option value="${d}">${d}</option>`; });
+    if (prevDate && [...dateSel.options].some(o => o.value === prevDate)) {
+        dateSel.value = prevDate;
+    } else if (prefix !== 'trends' && sortedDates.length) {
+        // Trends plots a series across dates, so it spans the whole window;
+        // the snapshot views open on the most recent run.
+        dateSel.value = sortedDates[0];
+    }
+}
+
+function populateAllFilters(data) {
+    TAB_PREFIXES.forEach(p => populateOneFilterBar(p, data));
+}
+
+function getFilteredRuns(prefix) {
+    if (!rawData || !rawData.perf_runs) return [];
+    const model = document.getElementById(`${prefix}-modelSelect`).value;
+    const hw = document.getElementById(`${prefix}-hwSelect`).value;
+    const deployment = document.getElementById(`${prefix}-deploymentSelect`).value;
+    const rocm = document.getElementById(`${prefix}-rocmSelect`).value;
+    const precision = document.getElementById(`${prefix}-precisionSelect`).value;
+    const islOsl = document.getElementById(`${prefix}-islOslSelect`).value;
+    const date = document.getElementById(`${prefix}-dateSelect`).value;
+
+    return rawData.perf_runs.filter(r => {
+        if (r.platform !== 'AMD') return false;
+        if (date && date !== 'all' && r.date !== date) return false;
+        const mk = modelKey(r);
+        if (model !== 'all' && mk !== model) return false;
+        if (hw !== 'all' && r.hardware !== hw) return false;
+        if (deployment !== 'all' && deploymentOf(r) !== deployment) return false;
+        if (rocm !== 'all' && r.rocm_version !== rocm) return false;
+        if (precision !== 'all' && inferPrecision(r.model_name, r.variant) !== precision) return false;
+        if (islOsl !== 'all') {
+            const osl = r.output_len || 512;
+            const match = r.metrics.some(m => `${fmtLen(m.input_len || 0)}/${fmtLen(osl)}` === islOsl);
+            if (!match) return false;
+        }
+        return true;
+    });
+}
+
+function getLatestRuns(runs) {
+    const latest = {};
+    for (const r of runs) {
+        const key = r.model_name + '|' + r.variant + '|' + r.hardware;
+        if (!latest[key] || r.date > latest[key].date) latest[key] = r;
+    }
+    return Object.values(latest);
+}
+
+function onPerfFilter() {
+    if (!rawData) return;
+    const filtered = getFilteredRuns('perf');
+    renderTradeoff(getLatestRuns(filtered));
+}
+
+function onTrendsFilter() {
+    if (!rawData) return;
+    const filtered = getFilteredRuns('trends');
+    renderCITracking(filtered);
+}
+
+function onDataFilter() {
+    if (!rawData) return;
+    const filtered = getFilteredRuns('data');
+    renderDataTable(filtered);
+}
+
+// ── Summary Cards ──────────────────────────────────────────────────────
+
+function renderSummary(runs) {
+    const el = document.getElementById('summary-cards');
+    if (!runs.length) {
+        el.innerHTML = '';
+        return;
+    }
+
+    const modelSet = new Set();
+    const hwSet = new Set();
+    let totalRows = 0;
+    let maxOutputTput = 0;
+
+    runs.forEach(r => {
+        modelSet.add(modelKey(r));
+        hwSet.add(r.hardware);
+        r.metrics.forEach(m => {
+            totalRows++;
+            if (m.output_throughput > maxOutputTput) maxOutputTput = m.output_throughput;
+        });
+    });
+
+    el.innerHTML = `
+        <div class="col-sm-3"><div class="card metric-card"><div class="card-body py-3">
+            <div class="text-muted small">Models</div>
+            <div class="fs-3 text-primary">${modelSet.size}</div>
+        </div></div></div>
+        <div class="col-sm-3"><div class="card metric-card"><div class="card-body py-3">
+            <div class="text-muted small">Hardware Configs</div>
+            <div class="fs-3 text-info">${hwSet.size}</div>
+        </div></div></div>
+        <div class="col-sm-3"><div class="card metric-card"><div class="card-body py-3">
+            <div class="text-muted small">Data Points</div>
+            <div class="fs-3 text-success">${totalRows}</div>
+        </div></div></div>
+        <div class="col-sm-3"><div class="card metric-card"><div class="card-body py-3">
+            <div class="text-muted small">Peak Output Tput</div>
+            <div class="fs-3 text-warning">${maxOutputTput.toFixed(1)}</div>
+            <div class="text-muted" style="font-size:0.7rem;">tok/s</div>
+        </div></div></div>
+    `;
+}
+
+// ── Token Throughput per GPU vs Latency (per-model scatter) ──────────
+
+let tradeoffCharts = {};
+
+function renderTradeoff(runs) {
+    const container = document.getElementById('tradeoff-cards');
+    const noData = document.getElementById('tradeoff-no-data');
+
+    Object.values(tradeoffCharts).forEach(c => c.destroy());
+    tradeoffCharts = {};
+
+    const latestRuns = getLatestRuns(runs);
+    if (!latestRuns.length) {
+        noData.style.display = 'block';
+        container.innerHTML = '';
+        return;
+    }
+    noData.style.display = 'none';
+
+    // Group by base model name; each variant+hardware is a separate line
+    const perModel = {};
+    latestRuns.forEach(r => {
+        const baseModel = r.model_name.split('/').pop();
+        const numGpus = r.num_gpus || 8;
+        const lineLabel = (r.variant ? `${r.variant} ` : '') + `[${r.hardware}] (${numGpus} GPU)`;
+        if (!perModel[baseModel]) perModel[baseModel] = { family: modelFamily(r.model_name), lines: {} };
+        if (!perModel[baseModel].lines[lineLabel]) perModel[baseModel].lines[lineLabel] = { numGpus, points: [] };
+        r.metrics.forEach(m => {
+            const inTput = m.input_throughput || 0;
+            const outTput = m.output_throughput || 0;
+            const totalTputPerGpu = (inTput + outTput) / numGpus;
+            if (totalTputPerGpu > 0 && m[tradeoffY] != null) {
+                perModel[baseModel].lines[lineLabel].points.push({
+                    x: m[tradeoffY],
+                    y: totalTputPerGpu,
+                    bs: m.batch_size,
+                    inTput,
+                    outTput,
+                    numGpus,
+                });
+            }
+        });
+    });
+
+    for (const md of Object.values(perModel)) {
+        for (const ln of Object.values(md.lines)) ln.points.sort((a, b) => a.x - b.x);
+    }
+
+    // Sort models by family, then newest-to-oldest within each family.
+    const modelNames = Object.keys(perModel).sort((a, b) => {
+        const fa = SERIES_ORDER.indexOf(perModel[a].family), fb = SERIES_ORDER.indexOf(perModel[b].family);
+        if (fa !== fb) return fa - fb;
+        return compareModelsNewestFirst(a, b);
+    });
+
+    const tputLabel = 'Token Throughput per GPU (tok/s/gpu)';
+    let html = '';
+    let prevFamily = null;
+    modelNames.forEach((modelName, mi) => {
+        const family = perModel[modelName].family;
+        if (family !== prevFamily) {
+            prevFamily = family;
+            html += `<div class="col-12"><h6 class="text-muted border-bottom pb-1 mt-2 mb-0">${family}</h6></div>`;
+        }
+        const chartId = `tradeoffModel_${mi}`;
+        html += `
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header py-2"><h6 class="mb-0">${modelName}</h6></div>
+                <div class="card-body py-2"><div class="chart-container"><canvas id="${chartId}"></canvas></div></div>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+
+    modelNames.forEach((modelName, mi) => {
+        const chartId = `tradeoffModel_${mi}`;
+        const ctx = document.getElementById(chartId)?.getContext('2d');
+        if (!ctx) return;
+        const lines = perModel[modelName].lines;
+        const datasets = Object.entries(lines).map(([lineLabel, ln], idx) => ({
+            label: lineLabel,
+            data: ln.points,
+            borderColor: CHART_COLORS[idx % CHART_COLORS.length],
+            backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] + 'aa',
+            borderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            showLine: true,
+            fill: false,
+            tension: 0,
+        }));
+        tradeoffCharts[chartId] = new Chart(ctx, {
+            type: 'scatter',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { font: { size: 9 }, usePointStyle: true, pointStyle: 'circle' } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const p = ctx.raw;
+                                return [
+                                    `${ctx.dataset.label} BS${p.bs}`,
+                                    `${tradeoffYLabel}: ${p.x.toFixed(2)}`,
+                                    `Total Tput/GPU: ${p.y.toFixed(1)} tok/s/gpu`,
+                                    `Input: ${p.inTput.toFixed(1)}, Output: ${p.outTput.toFixed(1)} tok/s`,
+                                    `GPUs: ${p.numGpus}`,
+                                ];
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: { title: { display: true, text: tradeoffYLabel, font: { size: 11 } } },
+                    y: { beginAtZero: false, title: { display: true, text: tputLabel, font: { size: 11 } } },
+                },
+            },
+        });
+    });
+}
+
+// ── AMD vs NVIDIA Comparison ────────────────────────────────────────────
+
+let compareCharts = {};
+
+function renderComparison(allRuns) {
+    const container = document.getElementById('compare-cards');
+    const noData = document.getElementById('compare-no-data');
+
+    Object.values(compareCharts).forEach(c => c.destroy());
+    compareCharts = {};
+
+    // Find models that have data on BOTH platforms
+    const byModel = {};
+    allRuns.forEach(r => {
+        const mk = modelKey(r);
+        if (!byModel[mk]) byModel[mk] = { AMD: [], NVIDIA: [] };
+        if (r.platform === 'AMD' || r.platform === 'NVIDIA') {
+            byModel[mk][r.platform].push(r);
+        }
+    });
+
+    const sharedModels = Object.keys(byModel).filter(
+        m => byModel[m].AMD.length > 0 && byModel[m].NVIDIA.length > 0
+    ).sort();
+
+    if (!sharedModels.length) {
+        noData.style.display = 'block';
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+    noData.style.display = 'none';
+    container.style.display = '';
+
+    let html = '';
+    sharedModels.forEach((modelKey, mi) => {
+        const amdRuns = byModel[modelKey].AMD;
+        const nvidiaRuns = byModel[modelKey].NVIDIA;
+
+        // Get latest run per platform, collect metrics by batch_size
+        const latestAmd = getLatestRuns(amdRuns);
+        const latestNv = getLatestRuns(nvidiaRuns);
+
+        const amdByBs = {};
+        latestAmd.forEach(r => r.metrics.forEach(m => { amdByBs[m.batch_size] = m; }));
+        const nvByBs = {};
+        latestNv.forEach(r => r.metrics.forEach(m => { nvByBs[m.batch_size] = m; }));
+
+        const allBs = [...new Set([...Object.keys(amdByBs), ...Object.keys(nvByBs)])]
+            .map(Number).sort((a, b) => a - b);
+        const labels = allBs.map(bs => `BS ${bs}`);
+
+        const amdHw = latestAmd.length ? latestAmd[0].hardware : 'AMD';
+        const nvHw = latestNv.length ? latestNv[0].hardware : 'NVIDIA';
+
+        const outCanvasId = `cmpOut_${mi}`;
+        const itlCanvasId = `cmpItl_${mi}`;
+
+        // Summary pills
+        let pillsHtml = '';
+        allBs.forEach(bs => {
+            const a = amdByBs[bs], n = nvByBs[bs];
+            if (a && n && n.output_throughput) {
+                const ratio = ((a.output_throughput / n.output_throughput) * 100).toFixed(0);
+                const cls = ratio >= 100 ? 'up' : ratio >= 90 ? 'flat' : 'down';
+                pillsHtml += `<span class="ci-metric-pill ${cls}">BS${bs}: AMD ${ratio}% of NVIDIA</span>`;
+            }
+        });
+
+        const shortModel = modelKey.split('/').pop();
+        html += `
+        <div class="col-md-6">
+            <div class="card ci-card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0">${shortModel}</h6>
+                    <small class="text-muted">${amdHw} vs ${nvHw}</small>
+                </div>
+                <div class="card-body py-2">
+                    <div class="ci-metric-row mb-2">${pillsHtml}</div>
+                    <div class="ci-chart-container"><canvas id="${outCanvasId}"></canvas></div>
+                    <div class="ci-chart-container mt-2"><canvas id="${itlCanvasId}"></canvas></div>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+    // Render charts
+    sharedModels.forEach((modelKey, mi) => {
+        const amdRuns = byModel[modelKey].AMD;
+        const nvidiaRuns = byModel[modelKey].NVIDIA;
+        const latestAmd = getLatestRuns(amdRuns);
+        const latestNv = getLatestRuns(nvidiaRuns);
+
+        const amdByBs = {};
+        latestAmd.forEach(r => r.metrics.forEach(m => { amdByBs[m.batch_size] = m; }));
+        const nvByBs = {};
+        latestNv.forEach(r => r.metrics.forEach(m => { nvByBs[m.batch_size] = m; }));
+
+        const allBs = [...new Set([...Object.keys(amdByBs), ...Object.keys(nvByBs)])]
+            .map(Number).sort((a, b) => a - b);
+        const labels = allBs.map(bs => `BS ${bs}`);
+
+        const amdHw = latestAmd.length ? latestAmd[0].hardware : 'AMD';
+        const nvHw = latestNv.length ? latestNv[0].hardware : 'NVIDIA';
+
+        function makeBarChart(canvasId, metricKey, yLabel) {
+            const ctx = document.getElementById(canvasId)?.getContext('2d');
+            if (!ctx) return;
+            compareCharts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: `AMD (${amdHw})`,
+                            data: allBs.map(bs => amdByBs[bs] ? amdByBs[bs][metricKey] : null),
+                            backgroundColor: '#dc354599',
+                            borderColor: '#dc3545',
+                            borderWidth: 1,
+                        },
+                        {
+                            label: `NVIDIA (${nvHw})`,
+                            data: allBs.map(bs => nvByBs[bs] ? nvByBs[bs][metricKey] : null),
+                            backgroundColor: '#19875499',
+                            borderColor: '#198754',
+                            borderWidth: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { font: { size: 10 }, usePointStyle: true, pointStyle: 'rect' } },
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: yLabel, font: { size: 10 } } },
+                        x: { title: { display: false } },
+                    },
+                },
+            });
+        }
+
+        makeBarChart(`cmpOut_${mi}`, 'output_throughput', 'Output Throughput (tok/s)');
+        makeBarChart(`cmpItl_${mi}`, 'itl_ms', 'ITL (ms)');
+    });
+}
+
+// ── CI Tracking (per-model trend cards, AMD only) ───────────────────────
+
+function renderCITracking(allRuns) {
+    const container = document.getElementById('ci-cards');
+    const noData = document.getElementById('ci-no-data');
+    const pm = CI_METRICS[ciMetric];
+
+    Object.values(ciCharts).forEach(c => c.destroy());
+    ciCharts = {};
+
+    const groups = {};
+    allRuns.forEach(r => {
+        const key = `${r.model_name}|${r.variant}|${r.hardware}|${r.platform || ''}|${deploymentOf(r)}`;
+        const label = r.model_name.split('/').pop() + (r.variant ? ` (${r.variant})` : '') + ` [${r.hardware}]`;
+        if (!groups[key]) groups[key] = { label, fullModel: r.model_name, variant: r.variant, hardware: r.hardware, platform: r.platform || '', numGpus: r.num_gpus || 8, runs: [] };
+        groups[key].runs.push(r);
+    });
+
+    const groupKeys = Object.keys(groups).sort();
+    if (!groupKeys.length) {
+        noData.style.display = 'block';
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+    noData.style.display = 'none';
+    container.style.display = '';
+
+    // Sort keys by family, then newest-to-oldest within each family.
+    const sortedKeys = [...groupKeys].sort((a, b) => {
+        const fa = modelFamily(groups[a].fullModel), fb = modelFamily(groups[b].fullModel);
+        const ia = SERIES_ORDER.indexOf(fa), ib = SERIES_ORDER.indexOf(fb);
+        if (ia !== ib) return ia - ib;
+        const am = groups[a].fullModel + (groups[a].variant ? ` (${groups[a].variant})` : '');
+        const bm = groups[b].fullModel + (groups[b].variant ? ` (${groups[b].variant})` : '');
+        return compareModelsNewestFirst(am, bm) || a.localeCompare(b);
+    });
+
+    let html = '';
+    let prevFamily = null;
+    sortedKeys.forEach((key, gi) => {
+        const g = groups[key];
+        const family = modelFamily(g.fullModel);
+
+        if (family !== prevFamily) {
+            prevFamily = family;
+            html += `<div class="col-12"><h6 class="text-muted border-bottom pb-1 mt-2 mb-0">${family}</h6></div>`;
+        }
+
+        const bsSeries = {};
+        g.runs.forEach(r => {
+            r.metrics.forEach(m => {
+                if (!bsSeries[m.batch_size]) bsSeries[m.batch_size] = [];
+                bsSeries[m.batch_size].push({ date: r.date, _num_gpus: r.num_gpus || g.numGpus, ...m });
+            });
+        });
+        Object.values(bsSeries).forEach(arr => arr.sort((a, b) => a.date.localeCompare(b.date)));
+
+        const batchSizes = Object.keys(bsSeries).map(Number).sort((a, b) => a - b);
+        const allDates = [...new Set(g.runs.map(r => r.date))].sort();
+
+        const canvasId = `ciChart_${gi}`;
+
+        let pillsHtml = '';
+        batchSizes.forEach(bs => {
+            const pts = bsSeries[bs];
+            if (!pts.length) return;
+            const curr = pts[pts.length - 1];
+            const val = getMetricVal(curr, ciMetric);
+            pillsHtml += `<span class="ci-metric-pill flat">BS${bs}: ${val != null ? val.toFixed(1) : '?'} ${pm.unit}</span>`;
+        });
+
+        html += `
+        <div class="col-md-6">
+            <div class="card ci-card">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge ${g.platform === 'NVIDIA' ? 'bg-success' : 'bg-danger'}" style="font-size:0.7rem">${g.platform}</span>
+                        <h6 class="mb-0 d-inline ms-1">${g.label}</h6>
+                    </div>
+                    <small class="text-muted">${allDates.length}d</small>
+                </div>
+                <div class="card-body py-2">
+                    <div class="ci-metric-row mb-2">${pillsHtml}</div>
+                    <div class="ci-chart-container"><canvas id="${canvasId}"></canvas></div>
+                </div>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+    sortedKeys.forEach((key, gi) => {
+        const g = groups[key];
+        const bsSeries = {};
+        g.runs.forEach(r => {
+            r.metrics.forEach(m => {
+                if (!bsSeries[m.batch_size]) bsSeries[m.batch_size] = [];
+                bsSeries[m.batch_size].push({ date: r.date, _num_gpus: r.num_gpus || g.numGpus, ...m });
+            });
+        });
+        Object.values(bsSeries).forEach(arr => arr.sort((a, b) => a.date.localeCompare(b.date)));
+
+        const batchSizes = Object.keys(bsSeries).map(Number).sort((a, b) => a - b);
+        const allDates = [...new Set(g.runs.map(r => r.date))].sort();
+        const dateLabels = allDates.map(d => { const dt = new Date(d + 'T00:00:00'); return `${dt.getMonth()+1}/${dt.getDate()}`; });
+
+        const datasets = batchSizes.map((bs, idx) => {
+            const pts = bsSeries[bs];
+            const dateMap = {};
+            pts.forEach(p => { dateMap[p.date] = getMetricVal(p, ciMetric); });
+
+            return {
+                label: `BS ${bs}`,
+                data: allDates.map(d => dateMap[d] ?? null),
+                borderColor: CHART_COLORS[idx % CHART_COLORS.length],
+                backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] + '33',
+                borderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false,
+                tension: 0.2,
+                spanGaps: true,
+            };
+        });
+
+        const canvasId = `ciChart_${gi}`;
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+        ciCharts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: { labels: dateLabels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } },
+                    tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw != null ? ctx.raw.toFixed(2) + ' ' + pm.unit : 'N/A'}` } },
+                },
+                scales: {
+                    y: { beginAtZero: false, title: { display: true, text: `${pm.label} (${pm.unit})`, font: { size: 11 } } },
+                    x: { title: { display: true, text: 'Date', font: { size: 11 } } },
+                },
+            },
+        });
+    });
+}
+
+// ── Data Table ──────────────────────────────────────────────────────────
+
+function renderDataTable(runs) {
+    const tbody = document.getElementById('data-rows');
+    if (!runs.length) {
+        tbody.innerHTML = '<tr><td colspan="14" class="text-center text-muted py-3">No data for selected filters.</td></tr>';
+        return;
+    }
+
+    const rows = [];
+    runs.forEach(r => {
+        const numGpus = r.num_gpus || 8;
+        r.metrics.forEach(m => {
+            const inTput = m.input_throughput || 0;
+            const outTput = m.output_throughput || 0;
+            const totalTputPerGpu = numGpus > 0 ? (inTput + outTput) / numGpus : 0;
+            rows.push({
+                date: r.date,
+                model: r.model_name,
+                variant: r.variant || '—',
+                hardware: r.hardware,
+                deployment: deploymentLabel(deploymentOf(r)),
+                num_gpus: numGpus,
+                batch_size: m.batch_size,
+                input_len: m.input_len,
+                latency_s: m.latency_s,
+                input_tput: m.input_throughput,
+                output_tput: m.output_throughput,
+                total_tput_per_gpu: totalTputPerGpu,
+                itl_ms: m.itl_ms,
+                job_url: r.job_url || r.run_url,
+            });
+        });
+    });
+
+    const keys = ['date', 'model', 'variant', 'hardware', 'deployment', 'num_gpus', 'batch_size', 'input_len', 'latency_s', 'input_tput', 'output_tput', 'total_tput_per_gpu', 'itl_ms'];
+    if (sortCol < keys.length) {
+        const key = keys[sortCol];
+        rows.sort((a, b) => {
+            const va = a[key] ?? 0, vb = b[key] ?? 0;
+            if (typeof va === 'number' && typeof vb === 'number') return sortAsc ? va - vb : vb - va;
+            return sortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+        });
+    }
+
+    tbody.innerHTML = rows.map(r => `<tr>
+        <td>${r.date}</td>
+        <td><span class="model-badge badge bg-light text-dark">${r.model.split('/').pop()}</span></td>
+        <td>${r.variant}</td>
+        <td><span class="hw-badge badge bg-info text-dark">${r.hardware}</span></td>
+        <td><span class="hw-badge badge bg-secondary-subtle text-dark">${r.deployment}</span></td>
+        <td class="text-end">${r.num_gpus}</td>
+        <td class="text-end">${r.batch_size}</td>
+        <td class="text-end">${r.input_len}</td>
+        <td class="text-end">${fmtNum(r.latency_s)}</td>
+        <td class="text-end fw-bold">${fmtNum(r.input_tput)}</td>
+        <td class="text-end fw-bold">${fmtNum(r.output_tput)}</td>
+        <td class="text-end fw-bold text-primary">${fmtNum(r.total_tput_per_gpu)}</td>
+        <td class="text-end">${fmtNum(r.itl_ms)}</td>
+        <td class="text-center"><a href="${r.job_url}" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></td>
+    </tr>`).join('');
+}
+
+function fmtNum(v) {
+    if (v == null) return '—';
+    return typeof v === 'number' ? v.toFixed(2) : v;
+}
+
+function sortTable(col) {
+    if (sortCol === col) { sortAsc = !sortAsc; }
+    else { sortCol = col; sortAsc = true; }
+    onFilterChange();
+}
+
+function exportCSV() {
+    const runs = getFilteredRuns('data');
+    if (!runs.length) return;
+
+    const header = 'Date,Model,Variant,Hardware,Deployment,GPUs,ROCm,Batch or Concurrency,Input Len,Latency (s),Input Throughput (tok/s),Output Throughput (tok/s),Total Tput/GPU (tok/s/gpu),ITL (ms),Job URL\n';
+    let csv = header;
+    runs.forEach(r => {
+        const numGpus = r.num_gpus || 8;
+        r.metrics.forEach(m => {
+            const inTput = m.input_throughput || 0;
+            const outTput = m.output_throughput || 0;
+            const totalTputPerGpu = numGpus > 0 ? ((inTput + outTput) / numGpus).toFixed(2) : '';
+            csv += `${r.date},${r.model_name},${r.variant || ''},${r.hardware},${deploymentLabel(deploymentOf(r))},${numGpus},${r.rocm_version || ''},` +
+                   `${m.batch_size},${m.input_len},${m.latency_s},${m.input_throughput},${m.output_throughput},${totalTputPerGpu},${m.itl_ms},` +
+                   `${r.job_url || r.run_url}\n`;
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sglang_benchmark_${currentDays}d.csv`;
+    a.click();
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dev Machines - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .dm-card { border-left: 4px solid #0d6efd; }
+    .dm-stat { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .dm-stat-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #6c757d; }
+    .dm-good { color: #0f5132; }
+    .dm-bad { color: #842029; }
+    .dm-warn { color: #664d03; }
+    .dm-muted { color: #6c757d; }
+    .table-dm td { font-size: .88rem; vertical-align: middle; }
+    .table-dm code { font-size: .84rem; }
+    .dm-alias { font-size: .7rem; }
+    .dm-detail { font-size: .8rem; }
+    .dm-filter-btn.active { font-weight: 700; }
+    .group-card .card-header { cursor: pointer; }
+    .dm-jump-badge { font-size: .62rem; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    <!-- Client-side admin gate. Static site => this is a lightweight access gate,
+     not real security. Shared across pages via sessionStorage. -->
+<div id="admin-lock-overlay" style="position:fixed;inset:0;z-index:20000;background:#0d1b2a;display:flex;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;padding:2rem 2.25rem;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.35);max-width:360px;width:100%;text-align:center;">
+        <div style="font-size:2.5rem;color:#0d6efd;line-height:1;margin-bottom:.5rem;"><i class="bi bi-shield-lock-fill"></i></div>
+        <h5 class="mb-1">Admin Access Required</h5>
+        <p class="text-muted small mb-3">This page is restricted. Enter the admin password to continue.</p>
+        <input type="password" id="admin-lock-input" class="form-control mb-2" placeholder="Password" autocomplete="off">
+        <div id="admin-lock-error" class="text-danger small mb-2" style="display:none;">Incorrect password. Try again.</div>
+        <button id="admin-lock-btn" class="btn btn-primary w-100">Unlock</button>
+    </div>
+</div>
+<script>
+(function(){
+    var KEY='dash_admin_ok';
+    var PW='amd';
+    var overlay=document.getElementById('admin-lock-overlay');
+    if(!overlay)return;
+    function unlock(){ if(overlay.parentNode) overlay.parentNode.removeChild(overlay); document.body.style.overflow=''; }
+    if(sessionStorage.getItem(KEY)==='1'){ unlock(); return; }
+    document.body.style.overflow='hidden';
+    var input=document.getElementById('admin-lock-input');
+    var btn=document.getElementById('admin-lock-btn');
+    var err=document.getElementById('admin-lock-error');
+    function attempt(){
+        if(input.value===PW){ sessionStorage.setItem(KEY,'1'); unlock(); }
+        else { err.style.display='block'; input.value=''; input.focus(); }
+    }
+    btn.addEventListener('click',attempt);
+    input.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); attempt(); } });
+    setTimeout(function(){ input.focus(); },50);
+})();
+</script>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-hdd-network"></i> Internal Dev Machine Status</h4>
+        <small class="text-muted">Can we SSH into the team's AMD dev boxes right now?</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span id="dm-checked-at" class="text-muted small"></span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="loadDevMachines(true)" id="dm-refresh-btn" title="Refresh">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+<div id="dm-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Loading dev machine status...</p>
+</div>
+
+<!-- Graceful empty state: shown until the login-side collector publishes a snapshot -->
+<div id="dm-notconfigured" class="card border-warning mb-4" style="display:none">
+    <div class="card-body">
+        <h5 class="card-title"><i class="bi bi-info-circle text-warning"></i> No dev-machine snapshot published yet</h5>
+        <p class="mb-2 text-muted">These boxes live on AMD-internal networks the dashboard host can't reach, so
+        (just like the DI CI Slurm nodes) a collector must run on a machine that can already SSH to them and publish a snapshot.</p>
+        <p class="mb-1 small">Run this from a host with the dev-machine SSH config, on a cron (e.g. every 15&nbsp;min):</p>
+        <pre class="bg-light border rounded p-2 mb-0 small"><code>GITHUB_TOKEN=&lt;token&gt; python3 dashboard/collect_dev_machines.py --publish</code></pre>
+    </div>
+</div>
+
+<div id="dm-content" style="display:none">
+
+    <!-- Summary cards -->
+    <div class="row g-3 mb-3" id="dm-summary"></div>
+
+    <!-- Status filter + search -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="btn-group btn-group-sm" role="group" id="dm-filters"></div>
+        <div class="input-group input-group-sm" style="max-width:260px">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" id="dm-search" class="form-control" placeholder="Filter by host name...">
+        </div>
+    </div>
+
+    <div class="small text-muted mb-3">
+        <span class="badge bg-success">reachable</span> SSH OK
+        <span class="badge bg-info text-dark ms-1">slurm-gated</span> auth OK, needs a Slurm job
+        <span class="badge bg-warning text-dark ms-1">auth</span> key not accepted
+        <span class="badge bg-danger ms-1">unreachable</span> down / no route / timeout
+        <span class="badge bg-secondary ms-1">dns-fail</span> name won't resolve
+    </div>
+
+    <!-- Per-group tables -->
+    <div id="dm-groups"></div>
+
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+var DM_REFRESH_MS = 15 * 60 * 1000;   // backend JSON itself refreshes ~every 15 min
+var _dmData = null;
+var _dmFilter = 'all';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDevMachines();
+    setInterval(function() { loadDevMachines(true); }, DM_REFRESH_MS);
+    var search = document.getElementById('dm-search');
+    if (search) search.addEventListener('input', applyDevFilter);
+});
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+}
+
+function fmtAgo(sec) {
+    sec = sec || 0;
+    if (sec < 90) return sec + 's';
+    var m = Math.floor(sec / 60);
+    if (m < 90) return m + 'm';
+    var h = Math.floor(m / 60);
+    if (h < 48) return h + 'h';
+    return Math.floor(h / 24) + 'd';
+}
+
+// status -> {label, badge-class} for consistent coloring across the page.
+function statusMeta(st) {
+    switch (st) {
+        case 'reachable':   return { label: 'reachable',   cls: 'bg-success' };
+        case 'slurm_gated': return { label: 'slurm-gated', cls: 'bg-info text-dark' };
+        case 'auth_fail':   return { label: 'auth fail',   cls: 'bg-warning text-dark' };
+        case 'hostkey_fail':return { label: 'host-key',    cls: 'bg-warning text-dark' };
+        case 'unreachable': return { label: 'unreachable', cls: 'bg-danger' };
+        case 'dns_fail':    return { label: 'dns fail',    cls: 'bg-secondary' };
+        case 'unprobed':    return { label: 'unprobed',    cls: 'bg-light text-dark border' };
+        default:            return { label: st || 'unknown', cls: 'bg-secondary' };
+    }
+}
+
+// A machine counts as a "problem" if it's not reachable and not merely
+// slurm-gated (which is an expected, benign state for compute nodes).
+function isProblem(st) {
+    return st !== 'reachable' && st !== 'slurm_gated' && st !== 'unprobed';
+}
+
+function loadDevMachines(silent) {
+    if (!silent) {
+        document.getElementById('dm-loading').style.display = 'block';
+        document.getElementById('dm-content').style.display = 'none';
+        document.getElementById('dm-notconfigured').style.display = 'none';
+    }
+    var btn = document.getElementById('dm-refresh-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
+    fetch('/api/dev-machines/status', silent ? {headers: {'Cache-Control': 'no-cache'}} : {})
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(data) {
+            try { renderDevMachines(data); }
+            catch (e) {
+                console.error('renderDevMachines error:', e);
+                document.getElementById('dm-loading').innerHTML =
+                    '<div class="alert alert-danger">Error rendering: ' + escapeHtml(e.message) + '</div>';
+            }
+        })
+        .catch(function(e) {
+            // A missing/unreachable snapshot (e.g. the static JSON hasn't been
+            // published yet, right after a deploy) is not a hard error — show
+            // the same graceful "not configured" state.
+            console.error('dev-machines fetch failed:', e);
+            renderDevMachines({configured: false});
+        })
+        .finally(function() {
+            var b = document.getElementById('dm-refresh-btn');
+            if (b) { b.disabled = false; b.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; }
+        });
+}
+
+function renderDevMachines(data) {
+    document.getElementById('dm-loading').style.display = 'none';
+
+    if (!data || !data.configured || !(data.machines && data.machines.length)) {
+        document.getElementById('dm-content').style.display = 'none';
+        document.getElementById('dm-notconfigured').style.display = '';
+        return;
+    }
+    _dmData = data;
+    document.getElementById('dm-notconfigured').style.display = 'none';
+    document.getElementById('dm-content').style.display = 'block';
+
+    // The absolute collection time goes to the shared header stamp; this spot
+    // keeps the relative age, which is what flags a stalled collector (the dev
+    // collector runs ~every 15 min).
+    setPageLastUpdated(
+        data.generated_at ||
+        (data.age_seconds != null ? new Date(Date.now() - data.age_seconds * 1000) : null)
+    );
+    var checkedEl = document.getElementById('dm-checked-at');
+    var stale = data.age_seconds != null && data.age_seconds > 3600;
+    checkedEl.className = stale ? 'text-danger small' : 'text-muted small';
+    checkedEl.textContent = data.age_seconds != null
+        ? fmtAgo(data.age_seconds) + ' ago' + (stale ? ' (stale)' : '')
+        : '';
+
+    renderSummary(data.summary || {});
+    renderFilters(data.status_counts || {}, data.summary || {});
+    renderGroups(data.machines || []);
+    applyDevFilter();
+}
+
+function renderSummary(s) {
+    var cards = [
+        { label: 'Machines', val: s.total || 0, cls: '' },
+        { label: 'Reachable', val: s.reachable || 0, cls: 'dm-good' },
+        { label: 'Unreachable', val: s.unreachable || 0, cls: (s.unreachable ? 'dm-bad' : 'dm-muted') },
+        { label: 'DNS Fail', val: s.dns_fail || 0, cls: (s.dns_fail ? 'dm-warn' : 'dm-muted') },
+    ];
+    if (s.slurm_gated) cards.push({ label: 'Slurm-gated', val: s.slurm_gated, cls: 'dm-muted' });
+    if (s.auth_fail) cards.push({ label: 'Auth Fail', val: s.auth_fail, cls: 'dm-warn' });
+    cards.push({ label: 'GPUs (reachable)', val: s.gpus_total || 0, cls: 'dm-good' });
+
+    var html = '';
+    cards.forEach(function(c) {
+        html += '<div class="col-6 col-md-3 col-xl">' +
+            '<div class="card dm-card h-100"><div class="card-body py-2 px-3">' +
+            '<div class="dm-stat ' + c.cls + '">' + c.val + '</div>' +
+            '<div class="dm-stat-label">' + c.label + '</div>' +
+            '</div></div></div>';
+    });
+    document.getElementById('dm-summary').innerHTML = html;
+}
+
+function renderFilters(counts, summary) {
+    var probCount = (counts.unreachable || 0) + (counts.dns_fail || 0) +
+                    (counts.auth_fail || 0) + (counts.hostkey_fail || 0) + (counts.unknown || 0);
+    var defs = [
+        { key: 'all', label: 'All (' + (summary.total || 0) + ')' },
+        { key: 'reachable', label: 'Reachable (' + (counts.reachable || 0) + ')' },
+        { key: 'problem', label: 'Problems (' + probCount + ')' },
+    ];
+    if (counts.slurm_gated) defs.push({ key: 'slurm_gated', label: 'Slurm-gated (' + counts.slurm_gated + ')' });
+    var html = '';
+    defs.forEach(function(d) {
+        html += '<button type="button" class="btn btn-outline-secondary dm-filter-btn' +
+            (d.key === _dmFilter ? ' active' : '') + '" data-filter="' + d.key + '" ' +
+            'onclick="setDevFilter(\'' + d.key + '\')">' + d.label + '</button>';
+    });
+    document.getElementById('dm-filters').innerHTML = html;
+}
+
+function setDevFilter(key) {
+    _dmFilter = key;
+    document.querySelectorAll('.dm-filter-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-filter') === key);
+    });
+    applyDevFilter();
+}
+
+// GPUs cell: "8 × MI355X" when we know the count, else a dash.
+function gpuCell(host) {
+    if (!host || !host.gpu_count) return '<span class="text-muted">—</span>';
+    var name = host.gpu_name || (host.gpu_vendor === 'nvidia' ? 'NVIDIA' : 'GPU');
+    // Trim verbose product strings to the recognizable model token.
+    var m = String(name).match(/MI\d+\w*|H\d{3}\w*|A\d{3}\w*|RX\s?\d+/i);
+    var shortName = m ? m[0] : name;
+    return '<span class="fw-semibold">' + host.gpu_count + ' ×</span> ' +
+        '<span title="' + escapeHtml(name) + '">' + escapeHtml(shortName) + '</span>';
+}
+
+function loadCell(host) {
+    if (!host || !host.loadavg || !host.loadavg.length) return '<span class="text-muted">—</span>';
+    var l = host.loadavg[0];
+    var n = host.nproc || 0;
+    var cls = 'dm-muted';
+    if (n) { cls = (l > n) ? 'dm-bad' : (l > n * 0.7 ? 'dm-warn' : 'dm-good'); }
+    var title = 'load 1/5/15m: ' + host.loadavg.join(' / ') + (n ? ' · ' + n + ' cores' : '');
+    return '<span class="' + cls + '" title="' + escapeHtml(title) + '">' + l.toFixed(1) + '</span>';
+}
+
+function usersCell(host) {
+    if (!host || !host.users || !host.users.length) return '<span class="text-muted">—</span>';
+    var u = host.users;
+    var shown = u.slice(0, 3).map(function(x) { return escapeHtml(x); }).join(', ');
+    if (u.length > 3) shown += ' <span class="text-muted">+' + (u.length - 3) + '</span>';
+    return '<span title="' + escapeHtml(u.join(', ')) + '">' + shown + '</span>';
+}
+
+function renderGroups(machines) {
+    // Preserve first-seen group order (follows the SSH-config order, which is
+    // grouped by cluster) rather than alphabetical.
+    var order = [];
+    var byGroup = {};
+    machines.forEach(function(m) {
+        if (!byGroup[m.group]) { byGroup[m.group] = []; order.push(m.group); }
+        byGroup[m.group].push(m);
+    });
+
+    var html = '';
+    order.forEach(function(group, gi) {
+        var rows = byGroup[group];
+        var reach = rows.filter(function(m) { return m.status === 'reachable'; }).length;
+        var prob = rows.filter(function(m) { return isProblem(m.status); }).length;
+        var gpus = rows.reduce(function(a, m) { return a + ((m.host && m.host.gpu_count) || 0); }, 0);
+
+        var badges = '<span class="badge bg-success ms-2">' + reach + ' up</span>';
+        if (prob) badges += '<span class="badge bg-danger ms-1">' + prob + ' down</span>';
+        if (gpus) badges += '<span class="badge bg-dark ms-1">' + gpus + ' GPUs</span>';
+
+        var body = '';
+        rows.forEach(function(m) {
+            var meta = statusMeta(m.status);
+            var host = m.host || {};
+            var aliasHtml = (m.aliases && m.aliases.length)
+                ? '<div class="dm-alias text-muted">alias: ' + m.aliases.map(function(a){return escapeHtml(a);}).join(', ') + '</div>' : '';
+            var jumpBadge = m.via_jump
+                ? ' <span class="badge bg-light text-dark border dm-jump-badge" title="reached via ProxyJump ' +
+                  escapeHtml(m.proxy_jump || 'jump host') + '"><i class="bi bi-diagram-3"></i> jump</span>' : '';
+            var detail = m.detail
+                ? '<span class="dm-detail ' + (isProblem(m.status) ? 'text-danger' : 'text-muted') + '">' + escapeHtml(m.detail) + '</span>'
+                : (host.uptime ? '<span class="dm-detail text-muted" title="' + escapeHtml(host.uptime) + '">' + escapeHtml((host.users && host.users.length) ? 'in use' : 'idle') + '</span>' : '<span class="text-muted">—</span>');
+
+            body += '<tr data-status="' + m.status + '" data-name="' + escapeHtml((m.name + ' ' + (m.aliases || []).join(' ')).toLowerCase()) + '">' +
+                '<td><code>' + escapeHtml(m.name) + '</code>' + jumpBadge + aliasHtml + '</td>' +
+                '<td><span class="badge ' + meta.cls + '">' + meta.label + '</span></td>' +
+                '<td>' + gpuCell(host) + '</td>' +
+                '<td>' + loadCell(host) + '</td>' +
+                '<td>' + usersCell(host) + '</td>' +
+                '<td class="text-muted small">' + escapeHtml(m.user || '') + '</td>' +
+                '<td>' + detail + '</td>' +
+                '</tr>';
+        });
+
+        html += '<div class="card mb-3 group-card" data-group-index="' + gi + '">' +
+            '<div class="card-header py-2 d-flex justify-content-between align-items-center" ' +
+            'onclick="this.nextElementSibling.classList.toggle(\'d-none\')">' +
+            '<div><strong><i class="bi bi-hdd-rack"></i> ' + escapeHtml(group) + '</strong>' +
+            '<span class="text-muted small ms-2">' + rows.length + ' host' + (rows.length === 1 ? '' : 's') + '</span>' + badges + '</div>' +
+            '<small class="text-muted">click to toggle</small>' +
+            '</div>' +
+            '<div class="table-responsive">' +
+            '<table class="table table-sm table-hover mb-0 table-dm align-middle">' +
+            '<thead><tr><th>Host</th><th>Status</th><th>GPUs</th>' +
+            '<th title="1-minute load average">Load</th><th>Logged in</th><th>Login user</th><th>Detail</th></tr></thead>' +
+            '<tbody>' + body + '</tbody></table></div></div>';
+    });
+    document.getElementById('dm-groups').innerHTML = html;
+}
+
+// Client-side status + name filtering; hides empty group cards.
+function applyDevFilter() {
+    var term = (document.getElementById('dm-search') || {}).value || '';
+    term = term.trim().toLowerCase();
+    document.querySelectorAll('#dm-groups .group-card').forEach(function(card) {
+        var visible = 0;
+        card.querySelectorAll('tbody tr').forEach(function(tr) {
+            var st = tr.getAttribute('data-status');
+            var name = tr.getAttribute('data-name') || '';
+            var passStatus =
+                _dmFilter === 'all' ? true :
+                _dmFilter === 'reachable' ? st === 'reachable' :
+                _dmFilter === 'problem' ? isProblem(st) :
+                st === _dmFilter;
+            var passName = !term || name.indexOf(term) >= 0;
+            var show = passStatus && passName;
+            tr.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        card.style.display = visible ? '' : 'none';
+    });
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>

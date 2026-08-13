@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runner Health - SGLang CI</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Flatpickr Date Picker -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/sglang-ci/static/css/style.css">
+
+    
+<style>
+    .pool-card { border-left: 4px solid #198754; }
+    .pool-card.pool-offline { border-left-color: #dc3545; }
+    .pool-card.pool-degraded { border-left-color: #ffc107; }
+    .pool-card.pool-idle { border-left-color: #adb5bd; }
+    .pool-status { font-weight: 600; text-transform: uppercase; font-size: 0.85rem; }
+    .pool-status.ps-healthy { color: #0f5132; }
+    .pool-status.ps-degraded { color: #664d03; }
+    .pool-status.ps-offline { color: #842029; }
+    .pool-status.ps-idle, .pool-status.ps-unknown { color: #6c757d; }
+    .uptime-pct { font-size: 1.4rem; font-weight: 700; }
+    .uptime-pct.up-good { color: #0f5132; }
+    .uptime-pct.up-warn { color: #664d03; }
+    .uptime-pct.up-bad { color: #842029; }
+    .uptime-dots { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; }
+    .uptime-dot { width: 14px; height: 14px; border-radius: 3px; display: inline-block; cursor: default; }
+    .uptime-dot.dot-up { background-color: #198754; }
+    .uptime-dot.dot-down { background-color: #dc3545; }
+    .uptime-dot.dot-partial { background-color: #ffc107; }
+    /* No jobs that day/hour — counted as up, but a lighter green than an hour
+       we actually watched a runner pick work up. */
+    .uptime-dot.dot-nodata { background-color: #a3cfbb; }
+    .uptime-window-btn.active { font-weight: 700; }
+    .hourly-chart { overflow-x: auto; }
+    .hourly-row { display: flex; gap: 1px; align-items: center; }
+    .hourly-cell { width: 6px; height: 20px; border-radius: 1px; flex-shrink: 0; }
+    .hourly-cell.hc-up { background-color: #198754; }
+    .hourly-cell.hc-down { background-color: #dc3545; }
+    .hourly-cell.hc-nodata { background-color: #cfe7db; }
+    .hourly-label { font-size: 0.7rem; color: #6c757d; }
+    .monitor-card { border-left: 4px solid #198754; }
+    .monitor-card.monitor-fail { border-left-color: #dc3545; }
+    .run-link { text-decoration: none; color: inherit; }
+    .run-link:hover { text-decoration: underline; }
+    .table-runs td { font-size: 0.88rem; }
+    .fleet-stat { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+    .fleet-row-toggle { cursor: pointer; }
+    .fleet-detail > td { background-color: #f8f9fa; }
+    .qbar-track { background-color: #e9ecef; border-radius: 2px; height: 9px; min-width: 90px; }
+    .qbar-fill { background-color: #0d6efd; border-radius: 2px; height: 9px; }
+    .spark { display: flex; gap: 1px; align-items: flex-end; height: 34px; overflow-x: auto; }
+    .spark-col { width: 5px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+    .spark-seg-queued { background-color: #ffc107; }
+    .spark-seg-running { background-color: #0dcaf0; }
+    .busy-strip { display: flex; gap: 2px; }
+    .busy-cell { flex: 1; min-width: 9px; height: 28px; border-radius: 2px; background-color: #e9ecef; }
+    .busy-cell.bl-Moderate { background-color: #a3cfbb; }
+    .busy-cell.bl-Busy { background-color: #ffc107; }
+    .busy-cell.bl-Peak { background-color: #dc3545; }
+    .grafana-card { border-left: 4px solid #f46800; }
+    .qh-chart { position: relative; height: 200px; }
+    .qh-chart-wide { height: 230px; }
+    .qh-stat { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+    .qh-delta { font-size: .72rem; font-weight: 600; }
+    .qh-delta.qd-better { color: #0f5132; }
+    .qh-delta.qd-worse { color: #842029; }
+    .qh-delta.qd-flat { color: #6c757d; }
+    /* Capacity split: one bar per pool spanning 0..max runners, with the warm
+       floor filled in and the observed 24h peak marked on top of it. */
+    .cap-bar { position: relative; height: 11px; min-width: 110px; border-radius: 3px;
+               background-color: #e9ecef; }
+    .cap-bar-min { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px 0 0 3px;
+                   background-color: #a3cfbb; }
+    .cap-bar-peak { position: absolute; top: -3px; bottom: -3px; width: 3px; border-radius: 2px;
+                    background-color: #0d6efd; }
+    .cap-bar-peak.peak-over { background-color: #dc3545; }
+    .cap-bar-now { position: absolute; top: -1px; bottom: -1px; width: 2px; background-color: #495057; }
+    .cap-stat { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+    .cap-drift td { background-color: #fff8e1; }
+</style>
+
+<script>
+(function(){
+var B='/sglang-ci/';
+var _f=window.fetch;
+window.fetch=function(u,o){
+if(typeof u!=='string')return _f.apply(this,arguments);
+if(o&&o.method&&o.method.toUpperCase()==='POST')
+  return Promise.resolve(new Response(
+    JSON.stringify({error:'Not available in static mode',success:false}),
+    {status:405,headers:{'Content-Type':'application/json'}}));
+if(u.startsWith('/api/')){
+  var p=u.substring(1),q=p.indexOf('?');
+  if(q>=0){var sp=new URLSearchParams(p.substring(q));p=p.substring(0,q);
+    Array.from(sp.entries()).sort(function(a,b){return a[0].localeCompare(b[0])})
+    .forEach(function(e){p+='-'+e[0]+'-'+e[1];});}
+  p+='.json';
+  return _f.call(this,B+p,o);}
+return _f.apply(this,arguments);
+};
+})();
+</script>
+<style>
+.static-hidden{display:none!important}
+.static-banner{background:#e8f4fd;border-bottom:1px solid #bee5eb;padding:0.35rem 1rem;text-align:center;font-size:0.82rem;color:#0c5460}
+@media(max-width:768px){.static-banner{font-size:0.75rem;padding:0.3rem 0.5rem}}
+</style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/sglang-ci/coverage/">
+                <i class="bi bi-graph-up"></i> SGLang Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/coverage/">
+                            <i class="bi bi-bar-chart-steps"></i> Coverage
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/benchmark-dashboard/">
+                            <i class="bi bi-speedometer2"></i> Benchmarks
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/nightly-ci/">
+                            <i class="bi bi-moon-stars"></i> Nightly CI
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/docker-images/">
+                            <i class="bi bi-box-seam"></i> Docker Images
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/sglang-ci/runner-health/">
+                            <i class="bi bi-heart-pulse"></i> Runner Health
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/dev-machines/">
+                            <i class="bi bi-hdd-network"></i> Dev Machines
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/amd-pr-tracker/">
+                            <i class="bi bi-git"></i> AMD PRs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/sglang-info/">
+                            <i class="bi bi-info-circle"></i> SGLang Info
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link " href="/sglang-ci/miles/">
+                            <i class="bi bi-signpost-split"></i> MILES
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                           title="CI tenant cluster telemetry in Grafana (Okta sign-in required)">
+                            <i class="bi bi-activity"></i> Grafana
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle " href="#" id="githubDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-github"></i> GitHub
+                            <i class="bi bi-circle-fill d-none" id="github-status-dot" style="font-size:0.5rem;vertical-align:middle"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item " href="/sglang-ci/pr-test/">
+                                <i class="bi bi-check2-square"></i> PR Test (AMD)
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" rel="noopener">
+                                <i class="bi bi-journal-code"></i> Dashboard Repo
+                            </a></li>
+                            <li><a class="dropdown-item" href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">
+                                <i class="bi bi-git"></i> SGLang Repo
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="https://www.githubstatus.com/" target="_blank" rel="noopener" id="github-status-link">
+                                <i class="bi bi-broadcast-pin"></i> GitHub Status
+                                <span class="d-block small text-muted" id="github-status-text">checking...</span>
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Internal-only banner: live dashboard link. Rendered only when
+         DASHBOARD_URL is configured, and stripped from the public GitHub Pages
+         static build so the internal address is never published. -->
+    
+
+    <!-- Main Content -->
+    <div class="static-banner"><i class="bi bi-clock-history"></i> This is a static snapshot. Data auto-updates every hour. Please reach out to CI dashboard owner Zhang, Michael, Chen, Bingxu or Tseng, YC for any question.</div>
+    <main class="container-fluid py-4">
+        <!-- Shared data-freshness stamp, in the same spot on every page. Pages
+             report the timestamp of the data they render via
+             setPageLastUpdated(); the rest fall back to the site-wide refresh
+             time from /api/build-info. -->
+        <div class="d-flex justify-content-end mb-2" id="page-updated-bar" style="display:none">
+            <small class="text-muted">
+                <i class="bi bi-clock-history"></i> Last Updated: <span id="page-last-updated"></span>
+            </small>
+        </div>
+        
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0"><i class="bi bi-heart-pulse"></i> AMD CI Runner Health</h4>
+        <small class="text-muted">Are the self-hosted AMD runners picking up jobs?</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <!-- A GitHub Actions incident looks exactly like a stalled runner fleet
+             from this page, so keep the place to rule that out one click away. -->
+        <a href="https://www.githubstatus.com/" target="_blank" rel="noopener"
+           class="btn btn-sm btn-outline-secondary" title="GitHub Status — rule out a GitHub Actions incident">
+            <i class="bi bi-broadcast-pin"></i> GitHub Status
+        </a>
+        <button class="btn btn-sm btn-outline-secondary" onclick="refreshHealth()" id="refresh-btn" title="Refresh data">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+</div>
+
+
+<!-- Cluster telemetry: what the machines under these runner pools are doing.
+     Plain links rather than embedded panels — Grafana is Okta-gated and served
+     over HTTP, so an iframe is blocked by the sign-in redirect and, on the
+     HTTPS static site, by mixed content. Sits outside #health-content so a
+     missing GitHub token doesn't take these links down with the tables. -->
+<div class="card mb-4 grafana-card">
+    <div class="card-body py-2 px-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div>
+                <strong><i class="bi bi-activity"></i> Cluster Telemetry</strong>
+                <span class="text-muted small ms-2">cluster <code>ccs-aus-csp-bm-pvt-prd</code>
+                    &middot; tenant <code>sglang</code></span>
+            </div>
+            <span class="badge bg-warning text-dark" title="Grafana is behind AMD's Okta SSO — sign in when the tab opens">
+                <i class="bi bi-shield-lock"></i> Grafana &middot; Okta sign-in
+            </span>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <a href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank" class="fw-semibold text-decoration-none">
+                    CI Tenant Cluster Detail <i class="bi bi-box-arrow-up-right small"></i>
+                </a>
+                <div class="text-muted small">GPU allocation, node state and utilization per GPU type for the CI tenant behind the runner pools below.</div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+                <span class="text-muted small">last</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="CI Tenant Cluster Detail time range">
+                    
+                    <a class="btn btn-outline-secondary" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-1h&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                       title="Open CI Tenant Cluster Detail over the last 1h">1h</a>
+                    
+                    <a class="btn btn-outline-secondary" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-6h&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                       title="Open CI Tenant Cluster Detail over the last 6h">6h</a>
+                    
+                    <a class="btn btn-outline-secondary" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-24h&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                       title="Open CI Tenant Cluster Detail over the last 24h">24h</a>
+                    
+                    <a class="btn btn-outline-secondary" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-7d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                       title="Open CI Tenant Cluster Detail over the last 7d">7d</a>
+                    
+                    <a class="btn btn-outline-secondary" href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/d/ci-tenant-cluster-detail-read-only/ci-tenant-cluster-detail?orgId=1&amp;from=now-30d&amp;to=now&amp;timezone=browser&amp;var-datasource=amp-prometheus&amp;var-cluster=ccs-aus-csp-bm-pvt-prd&amp;var-tenant=sglang&amp;var-gpu_type=$__all" target="_blank"
+                       title="Open CI Tenant Cluster Detail over the last 30d">30d</a>
+                    
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-muted mt-2" style="font-size:.78rem">
+            Opens in a new tab &middot; reachable from the AMD network &middot;
+            <a href="http://k8s-grafanao-grafanas-74a59d0101-272a94c2329ecfe0.elb.us-east-1.amazonaws.com/dashboards" target="_blank" class="text-muted">browse all Grafana dashboards</a>
+        </div>
+    </div>
+</div>
+
+
+<div id="health-loading" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Loading runner health data...</p>
+</div>
+
+<div id="health-content" style="display:none">
+
+    <!-- Runner pool cards -->
+    <div class="row g-3 mb-4" id="pool-cards"></div>
+
+    <!-- Runner capacity split: how many runners each scale set is allowed to
+         hold, and whether the last 24h agree with those bounds. Lives outside
+         #health-content's tables because it renders from its own endpoint. -->
+    <div class="card mb-4" id="capacity-section" style="display:none">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+            <div><strong><i class="bi bi-sliders"></i> Runner Capacity Split</strong>
+                <span class="text-muted small ms-2">runners per <code>runs-on</code> scale set
+                    &middot; <span class="text-success">warm floor</span> to ceiling</span>
+            </div>
+            <span id="capacity-meta" class="text-muted small"></span>
+        </div>
+        <div class="card-body py-2 px-3 border-bottom">
+            <div class="row text-center g-2" id="capacity-overview"></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs align-middle">
+                <thead><tr>
+                    <th>Runner Pool</th>
+                    <th title="GPUs a single runner of this pool holds">GPU/runner</th>
+                    <th title="minRunners — runners kept warm even with nothing queued">Min</th>
+                    <th title="maxRunners — the ceiling this pool can burst to">Max</th>
+                    <th title="0 to max runners: shaded is the warm floor, the blue mark is the 24h peak, the dark mark is what the cluster has registered now">Split</th>
+                    <th title="GPUs this pool holds at its floor and at its ceiling">GPUs</th>
+                    <th title="Most runners this pool had busy at once in the fleet report's window">Peak 24h</th>
+                    <th title="Jobs running on this pool right now (live, from Runner Pool Status)">Now</th>
+                    <th title="Whether the observed 24h matches the declared split">Check</th>
+                </tr></thead>
+                <tbody id="capacity-tbody"></tbody>
+            </table>
+        </div>
+        <div id="capacity-drift-wrap" class="border-top" style="display:none">
+            <div class="card-body py-2 px-3 pb-1">
+                <small class="text-warning fw-bold"><i class="bi bi-exclamation-triangle"></i> SPLIT DRIFT</small>
+                <span class="text-muted small ms-2">the cluster no longer matches
+                    <code>DECLARED_SPLIT</code> in <code>dashboard/runner_capacity.py</code></span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 table-runs align-middle">
+                    <thead><tr><th>Runner Pool</th><th>Change</th><th>On record</th><th>In cluster</th></tr></thead>
+                    <tbody id="capacity-drift-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-body py-2 px-3 border-top text-muted" style="font-size:.78rem" id="capacity-footnote"></div>
+    </div>
+
+    <!-- Per-runner-label pool status detail -->
+    <div class="card mb-4" id="pool-detail-section" style="display:none">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center">
+            <div><strong><i class="bi bi-hdd-stack"></i> Runner Pool Status</strong>
+                <span class="text-muted small ms-2">per <code>runs-on</code> label &middot; live pickup</span>
+            </div>
+            <div class="pool-legend small text-muted">
+                <span class="badge bg-success">online</span> picking up
+                <span class="badge bg-warning text-dark ms-1">degraded</span> backlog
+                <span class="badge bg-danger ms-1">offline</span> queued, no runner
+                <span class="badge bg-secondary ms-1">idle</span> no work
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs align-middle">
+                <thead><tr>
+                    <th>Runner Pool</th><th>Status</th><th>Queued</th><th>Max wait</th>
+                    <th>Running</th><th>Recent</th>
+                    <th title="Runners executing a job right now">Runners now</th>
+                    <th title="Peak simultaneous runners/nodes observed across recent + live jobs — a proxy for the total available capacity of this pool (admin-only runner API not available)">Total avail.</th>
+                </tr></thead>
+                <tbody id="pool-detail-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Runner Fleet Report: the AMD CI Job Monitor's 24h fleet analysis,
+         re-derived from the snapshot artifact that run publishes. Extends the
+         live table above with capacity + queue statistics per runs-on label. -->
+    <div class="card mb-4" id="fleet-section" style="display:none">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+            <div><strong><i class="bi bi-speedometer2"></i> Runner Fleet Report</strong>
+                <span class="text-muted small ms-2">capacity &amp; queue over the last <span id="fleet-window">24</span>h
+                    &middot; from <a href="https://github.com/sgl-project/sglang/actions/workflows/amd-ci-job-monitor.yml"
+                        target="_blank" class="text-decoration-none">AMD CI Job Monitor</a></span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span id="fleet-meta" class="text-muted small"></span>
+                <a id="fleet-report-link" href="#" target="_blank" class="btn btn-sm btn-outline-secondary">Full report</a>
+            </div>
+        </div>
+        <div class="card-body py-2 px-3 border-bottom">
+            <div class="row text-center g-2" id="fleet-overview"></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs align-middle">
+                <thead><tr>
+                    <th>Runner Pool</th>
+                    <th title="Most jobs this pool ran at the same instant — a proxy for its usable capacity">Peak</th>
+                    <th title="Time-weighted average number of jobs running concurrently">Avg</th>
+                    <th>Jobs</th>
+                    <th title="Median wait for a runner">Queue p50</th>
+                    <th title="90th percentile wait for a runner">p90</th>
+                    <th title="99th percentile wait — the worst waits contributors actually hit">p99</th>
+                    <th title="Average job runtime once a runner picked it up">Avg run</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="fleet-tbody"></tbody>
+            </table>
+        </div>
+        <div class="card-body py-2 px-3 border-top">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="text-muted fw-bold">JOBS STARTED BY HOUR (UTC)</small>
+                <div class="small text-muted">
+                    <span class="badge bg-danger">peak</span>
+                    <span class="badge bg-warning text-dark ms-1">busy</span>
+                    <span class="badge ms-1" style="background-color:#a3cfbb;color:#0f5132">moderate</span>
+                    <span class="badge bg-light text-dark border ms-1">quiet</span>
+                </div>
+            </div>
+            <div class="busy-strip" id="fleet-busy-strip"></div>
+            <div class="d-flex justify-content-between"><span class="hourly-label">00:00</span><span class="hourly-label">23:00</span></div>
+            <div class="small text-muted mt-1" id="fleet-busy-summary"></div>
+        </div>
+        <div id="fleet-stuck-wrap" class="border-top" style="display:none">
+            <div class="card-body py-2 px-3 pb-1">
+                <small class="text-danger fw-bold">GHOST JOBS</small>
+                <span class="text-muted small ms-2">reported <code>in_progress</code> with no runner assigned, or the run was already cancelled/failed</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 table-runs align-middle">
+                    <thead><tr><th>Job</th><th>Runner Pool</th><th>Runner</th><th>Run state</th><th>Workflow</th><th>Link</th></tr></thead>
+                    <tbody id="fleet-stuck-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue History: the same pickup samples the pool cards count, kept as a
+         series instead of a verdict. The fleet report says how yesterday went;
+         this says whether yesterday was normal. -->
+    <div class="card mb-4" id="qh-section" style="display:none">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+            <div><strong><i class="bi bi-graph-up-arrow"></i> Queue History</strong>
+                <span class="text-muted small ms-2">how long jobs waited for a runner, and how deep the queue got</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span id="qh-meta" class="text-muted small"></span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="History window">
+                    <button class="btn btn-outline-secondary qh-window-btn active" onclick="setQueueWindow(7)">7d</button>
+                    <button class="btn btn-outline-secondary qh-window-btn" onclick="setQueueWindow(14)">14d</button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body py-2 px-3 border-bottom">
+            <div class="row text-center g-2" id="qh-overview"></div>
+        </div>
+        <div class="card-body py-2 px-3 border-bottom">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                <div class="btn-group btn-group-sm" role="group" id="qh-pool-picker" aria-label="Runner pool"></div>
+                <small class="text-muted">days and hours are UTC</small>
+            </div>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="small fw-bold text-muted mb-1">WAIT FOR A RUNNER
+                        <span class="fw-normal">(per day &middot; <span class="text-primary">median</span> /
+                            <span class="text-danger">p90</span>)</span></div>
+                    <div class="qh-chart"><canvas id="qh-wait-chart"></canvas></div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="small fw-bold text-muted mb-1">DEMAND &amp; SLO
+                        <span class="fw-normal">(jobs that queued &middot;
+                            <span class="text-success">picked up &lt; 15m</span>)</span></div>
+                    <div class="qh-chart"><canvas id="qh-volume-chart"></canvas></div>
+                </div>
+                <div class="col-12">
+                    <div class="small fw-bold text-muted mb-1">QUEUE DEPTH VS RUNNERS BUSY
+                        <span class="fw-normal">(hourly average &middot;
+                            <span class="text-warning">jobs waiting</span> /
+                            <span class="text-info">jobs running</span>)</span></div>
+                    <div class="qh-chart qh-chart-wide"><canvas id="qh-depth-chart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs align-middle">
+                <thead><tr>
+                    <th>Runner Pool</th>
+                    <th title="Jobs that entered the queue for this pool in the window">Jobs</th>
+                    <th title="Share picked up by a runner within 15 minutes">Picked up &lt; 15m</th>
+                    <th title="Median wait for a runner">p50</th>
+                    <th title="90th percentile wait">p90</th>
+                    <th title="99th percentile wait — the worst waits contributors actually hit">p99</th>
+                    <th title="Average number of jobs waiting for a runner at any moment">Queue depth</th>
+                    <th title="Average number of jobs running at any moment">Running</th>
+                    <th title="Change against the equally long period before this one">vs prev</th>
+                </tr></thead>
+                <tbody id="qh-tbody"></tbody>
+            </table>
+        </div>
+        <div class="card-body py-2 px-3 border-top text-muted" style="font-size:.78rem" id="qh-footnote"></div>
+    </div>
+
+    <!-- DI CI MI355 nodes (Slurm partition amd-sglang; collected on the login node) -->
+    <div class="card mb-4" id="di-nodes-section" style="display:none">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-1">
+            <div><strong><i class="bi bi-cpu"></i> DI CI MI355 Nodes</strong>
+                <span class="text-muted small ms-2"><code>linux-sglang-mi35x-di</code> &middot; Slurm partition <code id="di-partition">amd-sglang</code></span>
+            </div>
+            <span id="di-nodes-meta" class="text-muted small"></span>
+        </div>
+        <div id="di-nodes-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 table-runs align-middle">
+                    <thead><tr>
+                        <th>Node</th><th>State</th>
+                        <th title="GPUs allocated / total (MI355)">GPUs</th>
+                        <th title="Host RAM allocated / total">Host RAM</th>
+                        <th title="Eligible for the disagg CI (up and not SLURM_EXCLUDEd)">CI</th>
+                        <th title="Slurm job currently holding the node">Held by</th>
+                    </tr></thead>
+                    <tbody id="di-nodes-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queued runs (top, expanded) — the live cross-branch MI325 queue -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header py-2 d-flex justify-content-between align-items-center bg-primary bg-opacity-10" style="cursor:pointer" onclick="document.getElementById('queued-collapse').classList.toggle('d-none')">
+            <div><strong><i class="bi bi-hourglass-split"></i> Queued Runs</strong> <span id="queued-count" class="badge bg-primary ms-1">0</span></div>
+            <div class="d-flex align-items-center gap-2">
+                <a href="https://github.com/sgl-project/sglang/actions?query=is%3Aqueued" target="_blank"
+                   class="small text-decoration-none" onclick="event.stopPropagation()"
+                   title="Open the live GitHub Actions queue">
+                    <i class="bi bi-box-arrow-up-right"></i> view queue on GitHub
+                </a>
+                <small class="text-muted">click to toggle</small>
+            </div>
+        </div>
+        <div id="queued-collapse">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 table-runs">
+                    <thead><tr><th>Run</th><th>Workflow</th><th>Author</th><th>PR / Branch</th><th>Runner</th><th>Title</th><th>Waiting</th><th>Link</th></tr></thead>
+                    <tbody id="queued-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monitor card -->
+    <div id="monitor-section" class="card mb-4 monitor-card d-none">
+        <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <strong>AMD CI Job Monitor</strong>
+                <span id="monitor-badge" class="badge ms-2">-</span>
+                <span class="text-muted ms-2 small" id="monitor-stats"></span>
+            </div>
+            <a id="monitor-link" href="#" class="btn btn-sm btn-outline-secondary" target="_blank">View Run</a>
+        </div>
+    </div>
+
+    <!-- In-progress runs -->
+    <div id="in-progress-section" class="card mb-4 d-none">
+        <div class="card-header py-2"><strong><i class="bi bi-play-circle"></i> In-Progress Runs</strong> <span id="ip-count" class="badge bg-info ms-1">0</span></div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs">
+                <thead><tr><th>Run</th><th>Workflow</th><th>Author</th><th>PR / Branch</th><th>Runner</th><th>Title</th><th>Link</th></tr></thead>
+                <tbody id="ip-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent completed runs -->
+    <div class="card mb-4">
+        <div class="card-header py-2"><strong><i class="bi bi-clock-history"></i> Recent Completed Runs</strong> <span id="completed-count" class="badge bg-secondary ms-1">0</span></div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs">
+                <thead><tr><th>Run</th><th>Workflow</th><th>Result</th><th>Time</th></tr></thead>
+                <tbody id="completed-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Last passing runs -->
+    <div class="card mb-4 border-success" id="passed-section">
+        <div class="card-header py-2 bg-success bg-opacity-10"><strong><i class="bi bi-check-circle text-success"></i> Last Passing Runs</strong> <span id="passed-count" class="badge bg-success ms-1">0</span></div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 table-runs">
+                <thead><tr><th>Run</th><th>Workflow</th><th>Time</th></tr></thead>
+                <tbody id="passed-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-muted py-3 mt-5">
+        <div class="container">
+            <p class="mb-0">
+                SGLang Dashboard |
+                <a href="https://github.com/michaelzhang-ai/sglang-ci" target="_blank" class="text-decoration-none">michaelzhang-ai/sglang-ci</a>
+                <span class="ms-3"><a href="https://www.githubstatus.com/" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-broadcast-pin"></i> GitHub Status</a></span>
+                <span class="ms-3"><i class="bi bi-people-fill"></i> <span id="visitor-count">...</span> visitors</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Shared timestamp formatting and the "Last Updated" stamp. Defined
+        // before any page script runs so pages can use them as soon as their
+        // data lands.
+        (function () {
+            let pageReported = false;
+
+            // Every timestamp is rendered in the viewer's own zone, so the zone
+            // has to be named for one to mean anything to a reader elsewhere.
+            const FORMAT = { timeZoneName: 'short' };
+
+            // Single definition of how an absolute moment is shown, so a new
+            // one can't be added without the zone. Values that aren't dates are
+            // passed through untouched.
+            window.formatTimestamp = function (value) {
+                const parsed = new Date(value);
+                return isNaN(parsed.getTime())
+                    ? String(value)
+                    : parsed.toLocaleString(undefined, FORMAT);
+            };
+
+            function render(value) {
+                const bar = document.getElementById('page-updated-bar');
+                const out = document.getElementById('page-last-updated');
+                if (!bar || !out || !value) return;
+                out.textContent = window.formatTimestamp(value);
+                bar.style.display = '';
+            }
+
+            window.setPageLastUpdated = function (value) {
+                if (!value) return;
+                pageReported = true;
+                render(value);
+            };
+
+            fetch('/api/build-info')
+                .then(response => response.json())
+                .then(data => { if (!pageReported) render(data.generated_at); })
+                .catch(() => {});
+        })();
+
+        // GitHub's own incident status, read straight from its public Statuspage
+        // in the browser: no backend involved, so the live server and the
+        // static snapshot both show a current value. The dot next to the
+        // GitHub menu is what makes an ongoing incident visible without
+        // opening the menu -- a GitHub outage is a common reason for the CI
+        // results on these pages to look broken.
+        (function () {
+            // Muted enough to sit on the navbar, bright enough to read on it.
+            const DOT_COLORS = {
+                none: '#5cd97b',
+                minor: '#ffd43b',
+                major: '#ff922b',
+                critical: '#ff6b6b',
+            };
+
+            const text = document.getElementById('github-status-text');
+            const dot = document.getElementById('github-status-dot');
+            const link = document.getElementById('github-status-link');
+
+            fetch('https://www.githubstatus.com/api/v2/status.json')
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    const status = data.status || {};
+                    const description = status.description || 'Status unknown';
+                    if (text) text.textContent = description;
+                    if (link) link.title = 'GitHub Status: ' + description;
+                    const color = DOT_COLORS[status.indicator];
+                    if (dot && color) {
+                        dot.style.color = color;
+                        dot.classList.remove('d-none');
+                    }
+                })
+                .catch(() => {
+                    // Ignore: the link itself still works, and a failed check
+                    // here says nothing about GitHub (it is just as likely to
+                    // be the viewer's network).
+                    if (text) text.textContent = 'check on githubstatus.com';
+                });
+        })();
+
+        // Load visitor count
+        fetch('/api/visitor-count')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('visitor-count').textContent = data.count.toLocaleString();
+            })
+            .catch(() => {
+                document.getElementById('visitor-count').textContent = '-';
+            });
+    </script>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="/sglang-ci/static/js/dashboard.js"></script>
+
+    
+<script>
+var GH_REPO = 'sgl-project/sglang';
+var QUEUE_REFRESH_MS = 15 * 60 * 1000;  // auto-refresh the queue every 15 min
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadHealth();
+    loadDiNodes();
+    loadFleetReport();
+    loadCapacity();
+    loadQueueHistory();
+    // Keep an open tab current without a manual refresh (backend JSON itself
+    // refreshes ~every 10 min). The fleet report is not re-fetched here: it is
+    // derived from a workflow that only runs daily.
+    setInterval(function() { refreshHealth(true); loadDiNodes(); }, QUEUE_REFRESH_MS);
+});
+
+// Best-effort PR link for a run: explicit PR when GitHub provides it, else a
+// PR search by head branch (works for fork/branch runs where pull_requests
+// is empty).
+function prUrlFor(r) {
+    if (r.pr_url) return r.pr_url;
+    if (r.pr_number) return 'https://github.com/' + GH_REPO + '/pull/' + r.pr_number;
+    if (r.head_branch) return 'https://github.com/' + GH_REPO + '/pulls?q=' +
+        encodeURIComponent('is:pr head:' + r.head_branch);
+    return '';
+}
+
+function loadHealth() {
+    document.getElementById('health-loading').style.display = 'block';
+    document.getElementById('health-content').style.display = 'none';
+    var btn = document.getElementById('refresh-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+
+    fetch('/api/runner-health/status')
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(data) {
+            try {
+                renderHealth(data);
+            } catch(e) {
+                console.error('renderHealth error:', e);
+                document.getElementById('health-loading').innerHTML =
+                    '<div class="alert alert-danger">Error rendering: ' + e.message + '</div>';
+            }
+        })
+        .catch(function(e) {
+            console.error('Fetch error:', e);
+            document.getElementById('health-loading').innerHTML =
+                '<div class="alert alert-danger">Failed to load runner health data: ' + e.message + '</div>';
+        })
+        .finally(function() {
+            var btn = document.getElementById('refresh-btn');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; }
+        });
+}
+
+function refreshHealth(silent) {
+    fetch('/api/runner-health/status', {headers: {'Cache-Control': 'no-cache'}})
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderHealth(data); })
+        .catch(function() {});
+    if (!silent) { loadFleetReport(); loadCapacity(); loadQueueHistory(); }
+    var btn = document.getElementById('refresh-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+    setTimeout(function() {
+        var b = document.getElementById('refresh-btn');
+        if (b) { b.disabled = false; b.innerHTML = '<i class="bi bi-arrow-clockwise"></i>'; }
+    }, 3000);
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+}
+
+// Author cell: link to the triggering user's GitHub profile.
+function authorCell(r) {
+    if (!r.actor) return '<td class="text-muted">—</td>';
+    return '<td><a href="https://github.com/' + encodeURIComponent(r.actor) +
+        '" target="_blank" class="run-link">@' + escapeHtml(r.actor) + '</a></td>';
+}
+
+// PR / Branch cell: PR link when available, else the head branch as a badge,
+// plus a small "tag" for the trigger event (schedule / dispatch / push).
+function prBranchCell(r) {
+    var html = '';
+    var prUrl = prUrlFor(r);
+    if (r.pr_number) {
+        html += '<a href="' + prUrl + '" target="_blank" class="run-link">#' + r.pr_number + '</a>';
+    } else if (r.head_branch) {
+        var badge = '<span class="badge bg-light text-dark border text-truncate" style="max-width:180px;vertical-align:bottom" title="' +
+            escapeHtml(r.head_branch) + ' — find PR">' + escapeHtml(r.head_branch) + '</span>';
+        html += prUrl ? '<a href="' + prUrl + '" target="_blank" class="run-link">' + badge + '</a>' : badge;
+    } else {
+        html += '<span class="text-muted">—</span>';
+    }
+    if (r.event && r.event !== 'pull_request') {
+        var ev = r.event === 'workflow_dispatch' ? 'dispatch' : r.event;
+        html += ' <span class="badge bg-secondary bg-opacity-25 text-dark" style="font-size:.65rem">' + escapeHtml(ev) + '</span>';
+    }
+    return '<td>' + html + '</td>';
+}
+
+// Human-readable wait time from minutes.
+function fmtWait(m) {
+    m = m || 0;
+    if (m <= 0) return '—';
+    if (m >= 1440) return Math.floor(m / 1440) + 'd ' + Math.floor((m % 1440) / 60) + 'h';
+    if (m >= 60) return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
+    return m + 'm';
+}
+
+// Per-runner-label pool status table: the granular "which size pool is stuck"
+// view. During a partial outage this exposes e.g. gpu-2 online while gpu-8 is
+// offline with a growing queue — invisible in the coarse MI325/MI35X cards.
+function renderPoolDetail(detail) {
+    var section = document.getElementById('pool-detail-section');
+    detail = detail || [];
+    // The capacity table's "Now" column reads from the same live rows, so hand
+    // them over and redraw it if it is already on screen.
+    _liveByLabel = {};
+    detail.forEach(function(p) { _liveByLabel[p.label] = p; });
+    renderCapacity();
+    if (!detail.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+
+    var tbody = document.getElementById('pool-detail-tbody');
+    tbody.innerHTML = '';
+    detail.forEach(function(p) {
+        var stCls = p.status === 'online' ? 'bg-success'
+            : (p.status === 'degraded' ? 'bg-warning text-dark'
+            : (p.status === 'offline' ? 'bg-danger' : 'bg-secondary'));
+
+        var wait = p.max_wait_min || 0;
+        var waitCls = wait > 60 ? 'text-danger fw-bold' : (wait > 30 ? 'text-warning fw-bold' : 'text-muted');
+
+        var queuedInner = (p.queued > 0 && p.queued_url)
+            ? '<a href="' + p.queued_url + '" target="_blank" class="run-link">' + p.queued + '</a>'
+            : p.queued;
+        var queuedCell = p.queued > 0
+            ? '<span class="fw-bold text-primary">' + queuedInner + '</span>'
+            : '<span class="text-muted">0</span>';
+
+        var runningInner = (p.in_progress > 0 && p.live_url)
+            ? '<a href="' + p.live_url + '" target="_blank" class="run-link">' + p.in_progress + '</a>'
+            : p.in_progress;
+        var runningCell = p.in_progress > 0
+            ? '<span class="fw-bold text-info">' + runningInner + '</span>'
+            : '<span class="text-muted">0</span>';
+
+        var recent = (p.passed || 0) + (p.failed || 0);
+        var recentCell = recent === 0
+            ? '<span class="text-muted">—</span>'
+            : '<span class="text-success">' + (p.passed || 0) + '&check;</span> '
+              + '<span class="' + ((p.failed || 0) > 0 ? 'text-danger fw-bold' : 'text-muted') + '">'
+              + (p.failed || 0) + '&cross;</span>';
+
+        var runnersCell = p.active_runners > 0
+            ? p.active_runners
+            : '<span class="text-muted">0</span>';
+
+        var totalCell = p.total_runners > 0
+            ? '<span class="fw-bold">' + p.total_runners + '</span>'
+            : '<span class="text-muted">—</span>';
+
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><code>' + escapeHtml(p.label) + '</code> ' +
+                '<span class="badge bg-light text-dark border" style="font-size:.62rem">' + escapeHtml(p.family) + '</span></td>' +
+            '<td><span class="badge ' + stCls + '">' + p.status + '</span></td>' +
+            '<td>' + queuedCell + '</td>' +
+            '<td class="' + waitCls + '">' + (p.queued > 0 ? fmtWait(wait) : '—') + '</td>' +
+            '<td>' + runningCell + '</td>' +
+            '<td>' + recentCell + '</td>' +
+            '<td>' + runnersCell + '</td>' +
+            '<td>' + totalCell + '</td>';
+        tbody.appendChild(tr);
+    });
+}
+
+// ---- Runner capacity split ---------------------------------------------
+// What each scale set is provisioned for (min runners kept warm, max it can
+// burst to), next to what the fleet actually ran. The split is why a queue
+// forms in one pool while another sits idle, and the per-pool check says
+// whether the numbers on record are still the ones in force.
+var _capacity = null;
+var _liveByLabel = {};
+
+var CAP_CHECK = {
+    'ok':           ['bg-success', 'within split'],
+    'capped':       ['bg-warning text-dark', 'at ceiling'],
+    'under-scaled': ['bg-danger', 'not scaling up'],
+    'over-max':     ['bg-danger', 'over max'],
+    'unobserved':   ['bg-secondary', 'no jobs'],
+    'undeclared':   ['bg-warning text-dark', 'not in split'],
+    'retired':      ['bg-light text-dark border', 'no scale set'],
+    'static':       ['bg-light text-dark border', 'not a scale set']
+};
+
+function loadCapacity() {
+    fetch('/api/runner-health/capacity')
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(d) { _capacity = d; renderCapacity(); })
+        .catch(function() {
+            var s = document.getElementById('capacity-section');
+            if (s) s.style.display = 'none';
+        });
+}
+
+function num(v) { return v == null ? '—' : v.toLocaleString(); }
+
+// One bar per pool spanning 0..max runners: the shaded part is the warm floor,
+// the blue mark is the 24h peak, and — only when the collector has read it out
+// of the cluster — the dark mark is how many runners are registered right now.
+// That last one is the only direct evidence the floor is really warm; job data
+// cannot show an idle runner.
+function capBar(p) {
+    if (!p.max) return '<span class="text-muted">—</span>';
+    var pct = function(v) { return Math.min(100, Math.round(v / p.max * 100)); };
+    // Offset each marker by its own width in proportion to how far along the
+    // bar it sits, so one at 100% stays inside the track instead of hanging
+    // off the end.
+    var at = function(v, w) { var x = pct(v); return 'left:calc(' + x + '% - ' + (x / 100 * w) + 'px)'; };
+    var tip = 'floor ' + (p.min == null ? '?' : p.min) + ' · ceiling ' + p.max + ' runners';
+    if (p.current_runners != null) tip += ' · ' + p.current_runners + ' registered now';
+    var html = '<div class="cap-bar" title="' + tip + '">' +
+        '<div class="cap-bar-min" style="width:' + pct(p.min || 0) + '%"></div>';
+    if (p.current_runners != null) {
+        html += '<div class="cap-bar-now" style="' + at(p.current_runners, 2) + '" title="' +
+            p.current_runners + ' runners registered now"></div>';
+    }
+    if (p.peak != null && p.peak > 0) {
+        html += '<div class="cap-bar-peak' + (p.peak > p.max ? ' peak-over' : '') +
+            '" style="' + at(p.peak, 3) + '" title="24h peak ' + p.peak + '"></div>';
+    }
+    return html + '</div>';
+}
+
+function renderCapacity() {
+    var section = document.getElementById('capacity-section');
+    var data = _capacity;
+    if (!data || !data.configured || !(data.pools && data.pools.length)) {
+        if (section) section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+
+    var t = data.totals || {};
+    var obs = data.observed || {};
+    var cards = [
+        ['Scale sets', t.pools, ''],
+        ['Runners warm', t.min_runners, 'text-success'],
+        ['Runners max', t.max_runners, ''],
+        ['GPUs warm', t.min_gpus, 'text-success'],
+        ['GPUs max', t.max_gpus, ''],
+        ['Needs a look', (data.issues || []).length,
+            ((data.issues || []).length ? 'text-danger' : 'text-muted')]
+    ];
+    document.getElementById('capacity-overview').innerHTML = cards.map(function(c) {
+        return '<div class="col-4 col-md-2">' +
+            '<div class="cap-stat ' + c[2] + '">' + num(c[1]) + '</div>' +
+            '<div class="text-muted" style="font-size:.72rem">' + c[0] + '</div></div>';
+    }).join('');
+
+    var src = data.source === 'declared'
+        ? '<span class="badge bg-secondary" title="No collector snapshot published yet — showing the split declared in dashboard/runner_capacity.py">on record</span>'
+        : '<span class="badge bg-success" title="Read from the ARC cluster by collect_runner_capacity.py">from cluster</span>';
+    var meta = document.getElementById('capacity-meta');
+    meta.innerHTML = src + ' <span class="ms-1">as of ' + escapeHtml(data.as_of || '—') + '</span>' +
+        (obs.available ? ' · checked against ' + Math.round(obs.hours || 24) + 'h of jobs' : '');
+
+    var tbody = document.getElementById('capacity-tbody');
+    tbody.innerHTML = '';
+    (data.pools || []).forEach(function(p) {
+        var chk = CAP_CHECK[p.status] || ['bg-secondary', p.status];
+        var live = _liveByLabel[p.label];
+        var running = live ? (live.in_progress || 0) : null;
+        var nowCell = running == null ? '<span class="text-muted">—</span>'
+            : (running > 0 ? '<span class="fw-bold text-info">' + running + '</span>'
+                           : '<span class="text-muted">0</span>');
+
+        var peakCell = '<span class="text-muted">—</span>';
+        if (p.peak != null && p.dispatched_jobs) {
+            var over = p.max != null && p.peak > p.max;
+            peakCell = '<span class="' + (over ? 'text-danger fw-bold' : 'fw-bold') + '">' + p.peak + '</span>' +
+                (p.peak_pct != null ? ' <span class="text-muted" style="font-size:.75rem">' +
+                    p.peak_pct + '% of max</span>' : '');
+        }
+
+        var gpuCell = (p.gpus_per_runner && p.max != null)
+            ? '<span class="text-muted">' + p.min_gpus + '–' + p.max_gpus + '</span>'
+            : '<span class="text-muted">—</span>';
+
+        // A floor the pool never filled is capacity paid for and unused, so
+        // say so on the number itself rather than spending a badge on it.
+        var minCell = p.min == null
+            ? '<span class="text-muted">—</span>'
+            : (p.floor_unused
+                ? '<span class="text-muted fw-bold" title="Peak concurrency (' + p.peak +
+                  ') never reached the ' + p.min + ' runners this pool keeps warm">' + p.min + '</span>'
+                : '<span class="text-success fw-bold">' + p.min + '</span>');
+        var maxCell = p.max == null
+            ? '<span class="text-muted">—</span>'
+            : '<span class="fw-bold">' + p.max + '</span>';
+
+        // The badge shows the worst verdict; the tooltip keeps the rest, since
+        // a pool can be at its ceiling *and* failing to reach it elsewhere.
+        var tip = p.note || p.status_text || '';
+        var extra = (p.flags || []).filter(function(f) { return f !== p.status; });
+        if (extra.length) tip += ' · also: ' + extra.join(', ');
+
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><code>' + escapeHtml(p.label) + '</code> ' +
+                '<span class="badge bg-light text-dark border" style="font-size:.62rem">' +
+                escapeHtml(p.family) + '</span></td>' +
+            '<td class="text-muted">' + (p.gpus_per_runner || '—') + '</td>' +
+            '<td>' + minCell + '</td>' +
+            '<td>' + maxCell + '</td>' +
+            '<td style="min-width:130px">' + capBar(p) + '</td>' +
+            '<td>' + gpuCell + '</td>' +
+            '<td>' + peakCell + '</td>' +
+            '<td>' + nowCell + '</td>' +
+            '<td><span class="badge ' + chk[0] + '" title="' +
+                escapeHtml(tip) + '">' + chk[1] + '</span></td>';
+        tbody.appendChild(tr);
+    });
+
+    var drift = data.drift || [];
+    var driftWrap = document.getElementById('capacity-drift-wrap');
+    driftWrap.style.display = drift.length ? '' : 'none';
+    if (drift.length) {
+        document.getElementById('capacity-drift-tbody').innerHTML = drift.map(function(d) {
+            var was = d.declared || {}, now = d.collected || {};
+            var fmt = function(v) {
+                return (v.min == null && v.max == null) ? '<span class="text-muted">—</span>'
+                    : v.min + ' / ' + v.max;
+            };
+            return '<tr class="cap-drift"><td><code>' + escapeHtml(d.label) + '</code></td>' +
+                '<td><span class="badge bg-warning text-dark">' + escapeHtml(d.kind) + '</span></td>' +
+                '<td>' + fmt(was) + '</td><td>' + fmt(now) + '</td></tr>';
+        }).join('');
+    }
+
+    var reportLink = obs.report_url
+        ? ' Peaks come from the <a href="' + escapeHtml(obs.report_url) +
+          '" target="_blank" class="text-muted">Runner Fleet Report</a> snapshot.'
+        : '';
+
+    // Labels no pool answers for. Only skipped jobs named them, so they have
+    // nothing to show in the table — but a workflow still points at them.
+    var unbacked = data.unbacked_labels || [];
+    var unbackedNote = unbacked.length
+        ? ' No pool backs ' + unbacked.map(function(u) {
+              return '<code>' + escapeHtml(u.label) + '</code> (' + u.jobs + ' skipped)';
+          }).join(', ') + ' — the workflows naming them can drop the label.'
+        : '';
+    document.getElementById('capacity-footnote').innerHTML =
+        'GitHub\'s self-hosted-runner API is admin-only, so the split cannot be read back from Actions. ' +
+        (data.source === 'declared'
+            ? 'These are the bounds on record in <code>dashboard/runner_capacity.py</code>; run ' +
+              '<code>collect_runner_capacity.py --publish</code> where <code>kubectl</code> reaches the ARC ' +
+              'cluster to track them automatically.'
+            : 'Read from the ARC <code>AutoscalingRunnerSet</code> objects by <code>collect_runner_capacity.py</code>' +
+              (data.age_seconds != null ? ', updated ' + fmtAgo(data.age_seconds) + ' ago' : '') + '.') +
+        ' <b>at ceiling</b> means jobs queued with the pool already at its max — raise the max. ' +
+        '<b>not scaling up</b> means jobs waited more than 15 min while the pool still had room below ' +
+        'its max, so the shortage is in the cluster and a bigger max would change nothing. ' +
+        '<b>over max</b> means a pool ran more at once than its ceiling allows, so the split above is stale.' +
+        reportLink + unbackedNote;
+}
+
+// Runner requirement cell: which AMD runner(s) the run's jobs need.
+function runnerCell(r) {
+    var tags = r.runner_tags || [];
+    if (!tags.length) return '<td class="text-muted">—</td>';
+    var html = tags.map(function(t) {
+        return '<span class="badge bg-dark bg-opacity-75" style="font-size:.66rem;font-weight:600">' +
+            escapeHtml(t) + '</span>';
+    }).join(' ');
+    return '<td style="white-space:nowrap">' + html + '</td>';
+}
+
+// ---- Runner Fleet Report ----------------------------------------------
+// Mirrors _format_duration_seconds in scripts/ci/utils/query_job_status.py so
+// the numbers read identically here and in the workflow's job summary.
+function fmtSecs(s) {
+    if (s == null || s < 0) return '—';
+    var t = Math.floor(s), m = Math.floor(t / 60), sec = t % 60;
+    if (m >= 60) return Math.floor(m / 60) + 'h' + (m % 60) + 'm';
+    return m + 'm' + sec + 's';
+}
+
+// Waits contributors notice: amber past 15 min, red past an hour.
+function queueCls(s) {
+    if (s == null) return 'text-muted';
+    if (s >= 3600) return 'text-danger fw-bold';
+    if (s >= 900) return 'text-warning fw-bold';
+    return '';
+}
+
+function loadFleetReport() {
+    fetch('/api/runner-health/fleet-report')
+        .then(function(r) { return r.json(); })
+        .then(function(d) { try { renderFleetReport(d); } catch(e) { console.error('renderFleetReport', e); } })
+        .catch(function() {
+            var s = document.getElementById('fleet-section');
+            if (s) s.style.display = 'none';
+        });
+}
+
+function renderFleetReport(data) {
+    var section = document.getElementById('fleet-section');
+    if (!data || !data.available || !(data.labels && data.labels.length)) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+
+    var hours = Math.round(data.hours || 24);
+    document.getElementById('fleet-window').textContent = hours;
+
+    var run = data.run || {};
+    document.getElementById('fleet-report-link').href = run.report_url || run.html_url || '#';
+    var meta = [];
+    if (run.run_number) meta.push('run #' + run.run_number);
+    if (data.generated_at) meta.push('snapshot ' + formatTimestamp(data.generated_at));
+    document.getElementById('fleet-meta').textContent = meta.join(' · ');
+
+    var ov = data.overview || {};
+    var cards = [
+        ['Runner pools', ov.runner_labels, ''],
+        ['Jobs analyzed', ov.jobs_total, ''],
+        ['Completed', ov.jobs_completed, 'text-success'],
+        ['Failed', ov.jobs_failed, (ov.jobs_failed > 0 ? 'text-danger' : 'text-muted')],
+        ['Ghost jobs', (data.stuck_jobs || []).length, ((data.stuck_jobs || []).length > 0 ? 'text-danger' : 'text-muted')],
+        ['Window', hours + 'h', 'text-muted']
+    ];
+    document.getElementById('fleet-overview').innerHTML = cards.map(function(c) {
+        return '<div class="col-4 col-md-2">' +
+            '<div class="fleet-stat ' + c[2] + '">' + (c[1] == null ? '—' : c[1]) + '</div>' +
+            '<div class="text-muted" style="font-size:.72rem">' + c[0] + '</div></div>';
+    }).join('');
+
+    var tbody = document.getElementById('fleet-tbody');
+    tbody.innerHTML = '';
+    data.labels.forEach(function(p, i) {
+        var tr = document.createElement('tr');
+        tr.className = 'fleet-row-toggle';
+        tr.setAttribute('onclick', "toggleFleetDetail(" + i + ")");
+        tr.innerHTML =
+            '<td><code>' + escapeHtml(p.label) + '</code></td>' +
+            '<td><span class="fw-bold">' + p.peak + '</span></td>' +
+            '<td class="text-muted">' + p.avg_concurrent + '</td>' +
+            '<td>' + p.total_jobs + '</td>' +
+            '<td class="' + queueCls(p.p50_queue_seconds) + '">' + fmtSecs(p.p50_queue_seconds) + '</td>' +
+            '<td class="' + queueCls(p.p90_queue_seconds) + '">' + fmtSecs(p.p90_queue_seconds) + '</td>' +
+            '<td class="' + queueCls(p.p99_queue_seconds) + '">' + fmtSecs(p.p99_queue_seconds) + '</td>' +
+            '<td class="text-muted">' + fmtSecs(p.avg_duration_seconds) + '</td>' +
+            '<td class="text-muted"><i class="bi bi-chevron-down" id="fleet-chev-' + i + '"></i></td>';
+        tbody.appendChild(tr);
+
+        var detail = document.createElement('tr');
+        detail.className = 'fleet-detail d-none';
+        detail.id = 'fleet-detail-' + i;
+        detail.innerHTML = '<td colspan="9">' + fleetDetailHtml(p, hours) + '</td>';
+        tbody.appendChild(detail);
+    });
+
+    var busy = data.busy_hours || [];
+    var busiest = Math.max.apply(null, busy.map(function(b) { return b.jobs_started; }).concat([1]));
+    document.getElementById('fleet-busy-strip').innerHTML = busy.map(function(b) {
+        return '<div class="busy-cell bl-' + b.load + '" title="' + b.hour_label + ' UTC · ' +
+            b.jobs_started + ' jobs started · avg queue ' + fmtSecs(b.avg_queue_seconds) + ' · ' + b.load + '"></div>';
+    }).join('');
+    var peaks = busy.filter(function(b) { return b.load === 'Peak'; }).map(function(b) { return b.hour_label; });
+    document.getElementById('fleet-busy-summary').innerHTML =
+        'Busiest hour ran ' + busiest + ' job starts' +
+        (peaks.length ? ' · peak: ' + escapeHtml(peaks.join(', ')) + ' UTC' : '');
+
+    var stuck = data.stuck_jobs || [];
+    var stuckWrap = document.getElementById('fleet-stuck-wrap');
+    if (!stuck.length) {
+        stuckWrap.style.display = 'none';
+    } else {
+        stuckWrap.style.display = '';
+        document.getElementById('fleet-stuck-tbody').innerHTML = stuck.map(function(j) {
+            return '<tr>' +
+                '<td class="text-truncate" style="max-width:320px" title="' + escapeHtml(j.job_name) + '">' +
+                    escapeHtml(j.job_name) + '</td>' +
+                '<td><code>' + escapeHtml(j.label) + '</code></td>' +
+                '<td class="text-muted"><code>' + escapeHtml(j.runner_name) + '</code></td>' +
+                '<td><span class="badge bg-warning text-dark">' + escapeHtml(j.run_status) + '/' +
+                    escapeHtml(j.run_conclusion) + '</span></td>' +
+                '<td class="text-muted small">' + escapeHtml(j.workflow) + '</td>' +
+                '<td><a href="' + escapeHtml(j.html_url) + '" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></td>' +
+                '</tr>';
+        }).join('');
+    }
+}
+
+// Per-pool drill-down: how waits were distributed, and when the pool was
+// actually busy vs. holding a backlog.
+function fleetDetailHtml(p, hours) {
+    var buckets = p.buckets || [];
+    var dist = buckets.length
+        ? '<table class="table table-sm mb-0" style="font-size:.8rem">' +
+            buckets.map(function(b) {
+                return '<tr><td class="text-nowrap py-1">' + escapeHtml(b.range) + '</td>' +
+                    '<td class="py-1" style="width:100%"><div class="qbar-track">' +
+                        '<div class="qbar-fill" style="width:' + b.percentage + '%"></div></div></td>' +
+                    '<td class="text-end text-muted py-1 text-nowrap">' + b.count + ' · ' + b.percentage + '%</td></tr>';
+            }).join('') + '</table>'
+        : '<div class="text-muted small">No job in this pool waited on a runner.</div>';
+
+    var util = p.utilization || [];
+    var maxY = Math.max.apply(null, util.map(function(s) { return s.running + s.queued; }).concat([1]));
+    var spark = util.length
+        ? '<div class="spark">' + util.map(function(s) {
+                var rh = Math.round(s.running / maxY * 34);
+                var qh = Math.round(s.queued / maxY * 34);
+                return '<div class="spark-col" title="' + escapeHtml(s.time) + ' UTC · ' + s.running +
+                    ' running · ' + s.queued + ' queued">' +
+                    (qh ? '<div class="spark-seg-queued" style="height:' + qh + 'px"></div>' : '') +
+                    (rh ? '<div class="spark-seg-running" style="height:' + rh + 'px"></div>' : '') +
+                    '</div>';
+            }).join('') + '</div>'
+        : '<div class="text-muted small">No activity in the window.</div>';
+
+    return '<div class="row g-3">' +
+        '<div class="col-md-6">' +
+            '<div class="small fw-bold text-muted mb-1">QUEUE TIME DISTRIBUTION' +
+            (p.queue_samples ? ' <span class="fw-normal">(' + p.queue_samples + ' samples · avg ' +
+                fmtSecs(p.avg_queue_seconds) + ')</span>' : '') + '</div>' + dist +
+        '</div>' +
+        '<div class="col-md-6">' +
+            '<div class="small fw-bold text-muted mb-1">UTILIZATION' +
+            ' <span class="fw-normal">(15-min samples over ' + hours + 'h · ' +
+            '<span class="text-info">running</span> / <span class="text-warning">queued</span>)</span></div>' +
+            spark +
+        '</div></div>';
+}
+
+function toggleFleetDetail(i) {
+    var row = document.getElementById('fleet-detail-' + i);
+    var chev = document.getElementById('fleet-chev-' + i);
+    if (!row) return;
+    var hidden = row.classList.toggle('d-none');
+    if (chev) chev.className = 'bi bi-chevron-' + (hidden ? 'down' : 'up');
+}
+
+// ---- Queue History -----------------------------------------------------
+// The fleet report is one day deep, which cannot tell a bad Tuesday from a
+// fleet that has been getting slower for a week. These series come from the
+// same pickup samples the pool cards count, kept per hour over a fortnight.
+var _qh = null;              // the payload
+var _qhWindow = 7;           // days on screen
+var _qhPool = '';            // '' = every pool together
+var _qhCharts = {};
+
+// Waits are seconds in the payload and minutes on an axis: an axis in seconds
+// reads as five digits at every tick.
+function toMinutes(s) { return s == null ? null : Math.round(s / 60 * 10) / 10; }
+
+function loadQueueHistory() {
+    fetch('/api/runner-health/queue-history')
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function(d) { _qh = d; renderQueueHistory(); })
+        .catch(function() {
+            var s = document.getElementById('qh-section');
+            if (s) s.style.display = 'none';
+        });
+}
+
+function setQueueWindow(days) {
+    _qhWindow = days;
+    document.querySelectorAll('.qh-window-btn').forEach(function(b) {
+        b.classList.toggle('active', b.textContent.trim() === days + 'd');
+    });
+    renderQueueHistory();
+}
+
+function setQueuePool(key) {
+    _qhPool = key;
+    renderQueueHistory();
+}
+
+// The series on screen: one pool, or every pool folded together.
+function qhSeries() {
+    if (!_qh) return null;
+    if (!_qhPool) return _qh.fleet;
+    return (_qh.pools || []).find(function(p) { return p.key === _qhPool; }) || _qh.fleet;
+}
+
+function qhWindowKey() { return _qhWindow + 'd'; }
+
+// A delta only means something when both sides are numbers, and "better" runs
+// the opposite way for a wait than for a pickup rate.
+function qhDelta(now, prev, opts) {
+    opts = opts || {};
+    if (now == null || prev == null) return '';
+    var diff = now - prev;
+    var cls = 'qd-flat';
+    if (Math.abs(diff) >= (opts.epsilon || 0)) {
+        cls = (diff > 0) === !!opts.higherIsBetter ? 'qd-better' : 'qd-worse';
+    }
+    var shown = opts.format ? opts.format(Math.abs(diff)) : Math.abs(Math.round(diff * 10) / 10);
+    var arrow = diff > 0 ? '\u2191' : (diff < 0 ? '\u2193' : '\u2192');
+    return '<div class="qh-delta ' + cls + '">' + arrow + ' ' + shown +
+        (opts.unit || '') + ' <span class="text-muted fw-normal">vs prev</span></div>';
+}
+
+function renderQueueHistory() {
+    var section = document.getElementById('qh-section');
+    if (!_qh || !_qh.available || !(_qh.pools || []).length) {
+        if (section) section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+
+    var meta = ['showing ' + _qhWindow + ' of ' + _qh.days + ' days kept'];
+    if (_qh.checked_at) meta.push('collected ' + formatTimestamp(_qh.checked_at));
+    document.getElementById('qh-meta').textContent = meta.join(' \u00b7 ');
+
+    // Pool picker
+    var picker = document.getElementById('qh-pool-picker');
+    var choices = [{ key: '', label: 'All pools' }].concat((_qh.pools || []).map(function(p) {
+        return { key: p.key, label: p.label };
+    }));
+    picker.innerHTML = choices.map(function(c) {
+        return '<button class="btn btn-outline-secondary' + (c.key === _qhPool ? ' active' : '') +
+            '" onclick="setQueuePool(\'' + c.key + '\')">' + escapeHtml(c.label) + '</button>';
+    }).join('');
+
+    var series = qhSeries();
+    var wk = qhWindowKey();
+    var win = (series.windows || {})[wk] || {};
+    var prev = (series.windows || {})[wk + '_prev'];
+
+    var cards = [
+        ['Jobs queued', (win.jobs || 0).toLocaleString(), '',
+            prev && qhDelta(win.jobs, prev.jobs, { higherIsBetter: true, unit: ' jobs' })],
+        ['Picked up < 15m', win.pct == null ? '—' : win.pct + '%',
+            win.pct == null ? '' : (win.pct >= 90 ? 'text-success' : (win.pct >= 50 ? 'text-warning' : 'text-danger')),
+            prev && qhDelta(win.pct, prev.pct, { higherIsBetter: true, unit: ' pts' })],
+        ['Median wait', fmtSecs(win.p50), queueCls(win.p50),
+            prev && qhDelta(win.p50, prev.p50, { format: fmtSecs, epsilon: 30 })],
+        ['p90 wait', fmtSecs(win.p90), queueCls(win.p90),
+            prev && qhDelta(win.p90, prev.p90, { format: fmtSecs, epsilon: 30 })],
+        ['Queue depth', win.queued == null ? '—' : win.queued.toFixed(1), 'text-warning',
+            prev && qhDelta(win.queued, prev.queued, { epsilon: 0.1, unit: ' jobs' })],
+        ['Runners busy', win.running == null ? '—' : win.running.toFixed(1), 'text-info',
+            prev && qhDelta(win.running, prev.running, { higherIsBetter: true, epsilon: 0.1, unit: ' jobs' })]
+    ];
+    document.getElementById('qh-overview').innerHTML = cards.map(function(c) {
+        return '<div class="col-4 col-md-2">' +
+            '<div class="qh-stat ' + c[2] + '">' + c[1] + '</div>' +
+            '<div class="text-muted" style="font-size:.72rem">' + c[0] + '</div>' +
+            (c[3] || '') + '</div>';
+    }).join('');
+
+    drawQueueCharts(series);
+    renderQueueTable();
+
+    var starved = win.hours_starved || 0;
+    document.getElementById('qh-footnote').innerHTML =
+        'Every AMD CI job that asked for a runner, filed under the hour it entered the queue — the same ' +
+        'samples the pool cards count, kept as a series instead of a verdict. <b>Queue depth</b> and ' +
+        '<b>runners busy</b> are job-hours per hour, so they read as the average number of jobs waiting, ' +
+        'and running, at any moment. ' +
+        (starved ? '<b>' + starved + '</b> of the ' + (win.hours_sampled || 0) + ' hours with jobs in this window ' +
+            'saw nothing picked up inside 15 minutes. ' : '') +
+        'History reaches back ' + _qh.days + ' days, the window the AMD CI Job Monitor keeps snapshots for.';
+}
+
+function qhSlice(arr, points) {
+    if (!arr) return [];
+    return arr.slice(Math.max(0, arr.length - points));
+}
+
+// "Aug 4" / "Aug 4 13:00", both UTC — hour keys are UTC and a series that
+// silently shifted by the viewer's offset would not line up with the busy-hour
+// strip above it.
+function qhDayLabel(date) {
+    var d = new Date(date + 'T00:00:00Z');
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+function qhHourLabel(key) {
+    return qhDayLabel(key.slice(0, 10)) + ' ' + key.slice(11) + ':00';
+}
+
+function qhChart(id, config) {
+    if (_qhCharts[id]) _qhCharts[id].destroy();
+    var el = document.getElementById(id);
+    if (!el) return;
+    _qhCharts[id] = new Chart(el.getContext('2d'), config);
+}
+
+var QH_BASE_OPTS = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: true, labels: { boxWidth: 10, font: { size: 10 } } } }
+};
+
+function drawQueueCharts(series) {
+    var days = qhSlice(series.daily, _qhWindow);
+    var dayLabels = days.map(function(d) { return qhDayLabel(d.date); });
+
+    qhChart('qh-wait-chart', {
+        type: 'line',
+        data: {
+            labels: dayLabels,
+            datasets: [
+                { label: 'median', data: days.map(function(d) { return toMinutes(d.p50); }),
+                  borderColor: '#0d6efd', backgroundColor: '#0d6efd', tension: 0.25, spanGaps: true },
+                { label: 'p90', data: days.map(function(d) { return toMinutes(d.p90); }),
+                  borderColor: '#dc3545', backgroundColor: '#dc3545', tension: 0.25, spanGaps: true }
+            ]
+        },
+        options: Object.assign({}, QH_BASE_OPTS, {
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'minutes' },
+                     ticks: { font: { size: 10 } } },
+                x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 } }
+            },
+            plugins: Object.assign({}, QH_BASE_OPTS.plugins, {
+                tooltip: { callbacks: { label: function(c) {
+                    return c.dataset.label + ': ' + (c.parsed.y == null ? 'no data' : fmtSecs(c.parsed.y * 60));
+                } } }
+            })
+        })
+    });
+
+    qhChart('qh-volume-chart', {
+        data: {
+            labels: dayLabels,
+            datasets: [
+                { type: 'bar', label: 'jobs queued', yAxisID: 'y',
+                  data: days.map(function(d) { return d.jobs; }),
+                  backgroundColor: 'rgba(13,110,253,.25)', borderColor: 'rgba(13,110,253,.6)', borderWidth: 1 },
+                { type: 'line', label: 'picked up < 15m', yAxisID: 'y1',
+                  data: days.map(function(d) { return d.pct; }),
+                  borderColor: '#198754', backgroundColor: '#198754', tension: 0.25, spanGaps: true }
+            ]
+        },
+        options: Object.assign({}, QH_BASE_OPTS, {
+            scales: {
+                y: { beginAtZero: true, position: 'left', title: { display: true, text: 'jobs' },
+                     ticks: { font: { size: 10 } } },
+                y1: { beginAtZero: true, max: 100, position: 'right', grid: { drawOnChartArea: false },
+                      title: { display: true, text: '% in SLO' }, ticks: { font: { size: 10 } } },
+                x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 } }
+            }
+        })
+    });
+
+    var points = _qhWindow * 24;
+    var hourLabels = qhSlice(_qh.hours, points).map(qhHourLabel);
+    var hourly = series.hourly || {};
+    qhChart('qh-depth-chart', {
+        type: 'line',
+        data: {
+            labels: hourLabels,
+            datasets: [
+                { label: 'jobs waiting', data: qhSlice(hourly.queued, points),
+                  borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,.25)',
+                  fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.2 },
+                { label: 'jobs running', data: qhSlice(hourly.running, points),
+                  borderColor: '#0dcaf0', backgroundColor: 'rgba(13,202,240,.25)',
+                  fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.2 }
+            ]
+        },
+        options: Object.assign({}, QH_BASE_OPTS, {
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'jobs' }, ticks: { font: { size: 10 } } },
+                x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }
+            }
+        })
+    });
+}
+
+// One row per pool for the selected window, so a fleet-wide average cannot
+// hide a single starved pool.
+function renderQueueTable() {
+    var wk = qhWindowKey();
+    var rows = (_qh.pools || []).map(function(p) {
+        return { key: p.key, label: p.label, win: (p.windows || {})[wk] || {},
+                 prev: (p.windows || {})[wk + '_prev'] };
+    });
+    rows.push({ key: '', label: 'All pools', win: (_qh.fleet.windows || {})[wk] || {},
+                prev: (_qh.fleet.windows || {})[wk + '_prev'], total: true });
+
+    document.getElementById('qh-tbody').innerHTML = rows.map(function(r) {
+        var w = r.win;
+        var pctCls = w.pct == null ? 'text-muted'
+            : (w.pct >= 90 ? 'text-success fw-bold' : (w.pct >= 50 ? 'text-warning fw-bold' : 'text-danger fw-bold'));
+        var trend = '<span class="text-muted">—</span>';
+        if (r.prev && w.p90 != null && r.prev.p90 != null) {
+            var diff = w.p90 - r.prev.p90;
+            var cls = Math.abs(diff) < 30 ? 'qd-flat' : (diff > 0 ? 'qd-worse' : 'qd-better');
+            trend = '<span class="qh-delta ' + cls + '" title="p90 wait against the previous ' +
+                _qhWindow + ' days">' + (diff > 0 ? '\u2191' : (diff < 0 ? '\u2193' : '\u2192')) + ' ' +
+                fmtSecs(Math.abs(diff)) + '</span>';
+        }
+        var rowCls = r.total ? 'table-light fw-semibold' : (r.key === _qhPool ? 'table-active' : '');
+        return '<tr' + (rowCls ? ' class="' + rowCls + '"' : '') + '>' +
+            '<td>' + escapeHtml(r.label) + '</td>' +
+            '<td>' + (w.jobs || 0).toLocaleString() + '</td>' +
+            '<td class="' + pctCls + '">' + (w.pct == null ? '—' : w.pct + '%') + '</td>' +
+            '<td class="' + queueCls(w.p50) + '">' + fmtSecs(w.p50) + '</td>' +
+            '<td class="' + queueCls(w.p90) + '">' + fmtSecs(w.p90) + '</td>' +
+            '<td class="' + queueCls(w.p99) + '">' + fmtSecs(w.p99) + '</td>' +
+            '<td class="text-warning">' + (w.queued == null ? '—' : w.queued.toFixed(1)) + '</td>' +
+            '<td class="text-info">' + (w.running == null ? '—' : w.running.toFixed(1)) + '</td>' +
+            '<td>' + trend + '</td></tr>';
+    }).join('');
+}
+
+// ---- DI CI MI355 nodes (Slurm partition amd-sglang) --------------------
+function fmtAgo(sec) {
+    sec = sec || 0;
+    if (sec < 90) return sec + 's';
+    var m = Math.floor(sec / 60);
+    if (m < 90) return m + 'm';
+    var h = Math.floor(m / 60);
+    if (h < 48) return h + 'h';
+    return Math.floor(h / 24) + 'd';
+}
+
+function fmtTB(mb) {
+    if (!mb) return '0';
+    return (mb / 1024 / 1024).toFixed(1) + 'T';
+}
+
+function loadDiNodes() {
+    fetch('/api/runner-health/di-nodes')
+        .then(function(r) { return r.json(); })
+        .then(function(d) { try { renderDiNodes(d); } catch(e) { console.error('renderDiNodes', e); } })
+        .catch(function() {
+            var s = document.getElementById('di-nodes-section');
+            if (s) s.style.display = 'none';
+        });
+}
+
+// The disagg pool's 4 MI355X nodes live in Slurm, invisible to the GitHub API.
+// A login-node collector publishes their state; render it when present, else
+// hide the panel (graceful no-data until the collector cron is wired).
+function renderDiNodes(data) {
+    var section = document.getElementById('di-nodes-section');
+    if (!data || !data.configured || !(data.nodes && data.nodes.length)) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = '';
+    document.getElementById('di-partition').textContent = data.partition || 'amd-sglang';
+
+    var s = data.summary || {};
+    var metaEl = document.getElementById('di-nodes-meta');
+    var meta = '';
+    if (data.age_seconds != null) meta += 'updated ' + fmtAgo(data.age_seconds) + ' ago · ';
+    meta += (s.up || 0) + '/' + (s.nodes || 0) + ' up · GPUs ' + (s.gpus_alloc || 0) + '/' +
+        (s.gpus_total || 0) + ' alloc · ' + (s.ci_ready_nodes || 0) + ' CI-ready';
+    var stale = data.age_seconds != null && data.age_seconds > 1800;
+    metaEl.className = stale ? 'text-danger small' : 'text-muted small';
+    metaEl.textContent = meta + (stale ? ' (stale)' : '');
+
+    var tbody = document.getElementById('di-nodes-tbody');
+    tbody.innerHTML = '';
+    data.nodes.forEach(function(n) {
+        var stCls = !n.up ? 'bg-danger'
+            : (n.excluded ? 'bg-secondary' : (n.holder ? 'bg-warning text-dark' : 'bg-success'));
+        var gpuCls = (n.gpus_alloc > 0) ? 'text-warning fw-bold' : 'text-success';
+        var ci = n.excluded
+            ? '<span class="badge bg-secondary" title="' + escapeHtml(n.excluded_reason || 'excluded') + '">excluded</span>'
+            : (n.ci_ready ? '<span class="badge bg-success">ready</span>'
+                : (n.ci_eligible ? '<span class="badge bg-warning text-dark">busy</span>'
+                    : '<span class="badge bg-danger">down</span>'));
+        var holder = n.holder
+            ? '<span title="job ' + escapeHtml(n.holder.job_id) + ' · ' + escapeHtml(n.holder.runtime || '') + '">@' +
+                escapeHtml(n.holder.user) + ' <span class="text-muted">(' + escapeHtml(n.holder.name || '') + ')</span></span>'
+            : '<span class="text-muted">—</span>';
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><code>' + escapeHtml(n.name) + '</code></td>' +
+            '<td><span class="badge ' + stCls + '">' + escapeHtml(n.state) + '</span></td>' +
+            '<td class="' + gpuCls + '">' + (n.gpus_alloc || 0) + ' / ' + (n.gpus_total || 0) + '</td>' +
+            '<td class="text-muted small">' + fmtTB(n.mem_alloc_mb) + ' / ' + fmtTB(n.mem_total_mb) + '</td>' +
+            '<td>' + ci + '</td>' +
+            '<td>' + holder + '</td>';
+        tbody.appendChild(tr);
+    });
+}
+
+// Uptime is measured as pickup latency (see _compute_pool_pickup): the share
+// of jobs a runner accepted within 15 minutes of them entering the queue,
+// sampled from every AMD job rather than one workflow run per hour. An hour
+// with no jobs counts as up — nobody asked the pool to do anything.
+function fmtWait(seconds) {
+    if (seconds == null) return '-';
+    if (seconds < 60) return Math.round(seconds) + 's';
+    var mins = Math.round(seconds / 60);
+    if (mins < 60) return mins + 'm';
+    return Math.floor(mins / 60) + 'h' + String(mins % 60).padStart(2, '0');
+}
+
+function pickupDetail(u) {
+    if (!u || !u.jobs) return 'no jobs queued in this window';
+    return u.jobs.toLocaleString() + ' jobs \u00b7 median ' + fmtWait(u.p50) +
+        ' \u00b7 p90 ' + fmtWait(u.p90);
+}
+
+function pickupStatusLabel(status) {
+    if (status === 'nodata') return 'no jobs (counted as up)';
+    if (status === 'down') return 'nothing picked up within 15m';
+    return status;
+}
+
+function renderHealth(data) {
+    document.getElementById('health-loading').style.display = 'none';
+    document.getElementById('health-content').style.display = 'block';
+
+    setPageLastUpdated(data.checked_at);
+
+    var ip = data.in_progress || {};
+    var q = data.queued || {};
+    var rc = data.recent_completed || {};
+
+    // Runner pool cards with pickup latency. Fixed left-to-right family order
+    // (MI30X, MI325X, MI35X, MI355X Disagg) independent of the backend dict /
+    // classification order; any unknown keys sort to the end.
+    var pools = data.runner_pools || {};
+    var POOL_ORDER = ['mi300', 'mi325', 'mi35x', 'mi355_di'];
+    var poolContainer = document.getElementById('pool-cards');
+    poolContainer.innerHTML = '';
+    Object.keys(pools).sort(function(a, b) {
+        var ia = POOL_ORDER.indexOf(a); if (ia < 0) ia = POOL_ORDER.length;
+        var ib = POOL_ORDER.indexOf(b); if (ib < 0) ib = POOL_ORDER.length;
+        return ia - ib;
+    }).forEach(function(key) {
+        var p = pools[key];
+        var cls = p.status === 'offline' ? 'pool-offline'
+            : (p.status === 'degraded' ? 'pool-degraded'
+            : ((p.status === 'idle' || p.status === 'unknown') ? 'pool-idle' : ''));
+        var psCls = 'ps-' + p.status;
+
+        var uptimeHtml = '';
+        if (p.pickup) {
+            var windows = ['24h', '7d', '14d'];
+            uptimeHtml += '<div class="mt-2 pt-2 border-top">';
+            uptimeHtml += '<div class="d-flex justify-content-between align-items-center mb-1">';
+            uptimeHtml += '<small class="text-muted fw-bold" title="Share of jobs a runner accepted within 15 minutes of them entering the queue. Hours in which no job queued count as up.">PICKED UP &lt; 15m</small>';
+            uptimeHtml += '<div class="btn-group btn-group-sm">';
+            windows.forEach(function(w, i) {
+                var u = p.pickup[w] || {};
+                var pct = u.pct != null ? u.pct + '%' : 'idle';
+                var upCls = u.pct == null ? '' : (u.pct >= 90 ? 'up-good' : (u.pct >= 50 ? 'up-warn' : 'up-bad'));
+                var hrs = w === '24h' ? 24 : (w === '7d' ? 168 : 336);
+                uptimeHtml += '<button class="btn btn-outline-secondary btn-sm uptime-window-btn' + (i === 0 ? ' active' : '') + '" ' +
+                    'onclick="showUptime(this,\'' + key + '\',' + hrs + ')" data-pct="' + pct + '" data-cls="' + upCls + '" ' +
+                    'data-detail="' + escapeHtml(pickupDetail(u)) + '">' + w + '</button>';
+            });
+            uptimeHtml += '</div></div>';
+
+            var u24 = p.pickup['24h'] || {};
+            var pct24 = u24.pct != null ? u24.pct + '%' : 'idle';
+            var cls24 = u24.pct == null ? '' : (u24.pct >= 90 ? 'up-good' : (u24.pct >= 50 ? 'up-warn' : 'up-bad'));
+            uptimeHtml += '<div class="d-flex align-items-center gap-2 mb-1"><span class="uptime-pct ' + cls24 + '" id="uptime-pct-' + key + '">' + pct24 + '</span>';
+            uptimeHtml += '<small class="text-muted" id="uptime-detail-' + key + '">' + escapeHtml(pickupDetail(u24)) + '</small>';
+            uptimeHtml += '</div>';
+
+            // Daily dots
+            uptimeHtml += '<div class="uptime-dots mb-1" id="uptime-dots-' + key + '">';
+            var daily = (p.daily || []).slice(0, 14);
+            daily.slice().reverse().forEach(function(d) {
+                var dotCls = d.status === 'up' ? 'dot-up' : (d.status === 'down' ? 'dot-down' : (d.status === 'partial' ? 'dot-partial' : 'dot-nodata'));
+                uptimeHtml += '<span class="uptime-dot ' + dotCls + '" title="' + d.date + ': ' + pickupStatusLabel(d.status) + '"></span>';
+            });
+            uptimeHtml += '</div>';
+
+            // Hourly heatmap (last 24h by default)
+            var hourly = (p.hourly || []).slice(0, 336);
+            uptimeHtml += '<div class="hourly-chart"><div class="hourly-row" id="hourly-row-' + key + '">';
+            hourly.slice(0, 24).reverse().forEach(function(h) {
+                var hcCls = h.status === 'up' ? 'hc-up' : (h.status === 'down' ? 'hc-down' : 'hc-nodata');
+                uptimeHtml += '<div class="hourly-cell ' + hcCls + '" title="' + h.hour + ':00 UTC: ' + pickupStatusLabel(h.status) + '"></div>';
+            });
+            uptimeHtml += '</div>';
+            uptimeHtml += '<div class="d-flex justify-content-between"><span class="hourly-label" id="hourly-left-' + key + '">24h ago</span><span class="hourly-label">now</span></div>';
+            uptimeHtml += '</div></div>';
+
+            // Store hourly data for window switching
+            window['_hourly_' + key] = hourly;
+        }
+
+        // Card status reads as online-ness (from Runner Pool Status below), not
+        // test pass/fail: green ONLINE when the pool is picking up jobs.
+        var stLabel = { healthy: 'online', offline: 'offline', idle: 'idle',
+            degraded: 'degraded', unknown: 'unknown' }[p.status] || (p.status || 'unknown');
+
+        var col = document.createElement('div');
+        col.className = 'col-sm-6 col-md-3';
+        col.innerHTML =
+            '<div class="card h-100 pool-card ' + cls + '">' +
+            '<div class="card-body py-2 px-3">' +
+            '<div class="d-flex justify-content-between align-items-center">' +
+            '<strong>' + (p.label || key) + ' Runners</strong>' +
+            '<span class="pool-status ' + psCls + '">' + stLabel + '</span>' +
+            '</div>' +
+            '<div class="text-muted small mt-1">' +
+            (p.all_skipped ? 'All jobs skipped (runners not available)' :
+             (p.jobs_total != null ? p.jobs_total + ' jobs: ' + p.jobs_passed + ' passed, ' + p.jobs_failed + ' failed' : '')) +
+            '</div>' +
+            uptimeHtml +
+            '</div></div>';
+        poolContainer.appendChild(col);
+    });
+
+    // Per-runner-label pool status detail
+    renderPoolDetail(data.runner_pool_detail);
+
+    // Monitor
+    var mon = data.monitor || {};
+    if (mon.last_run_at) {
+        var ms = document.getElementById('monitor-section');
+        ms.classList.remove('d-none');
+        var mb = document.getElementById('monitor-badge');
+        if (mon.conclusion === 'success') {
+            mb.className = 'badge bg-success ms-2'; mb.textContent = 'Passed';
+        } else {
+            mb.className = 'badge bg-danger ms-2'; mb.textContent = mon.conclusion || 'Unknown';
+            ms.classList.add('monitor-fail');
+        }
+        var stats = (mon.jobs_passed || 0) + '/' + (mon.jobs_total || 0) + ' jobs passed';
+        if (mon.mi325) stats += ' | MI325: ' + mon.mi325.passed + '/' + mon.mi325.total;
+        if (mon.mi35x) stats += ' | MI35X: ' + mon.mi35x.passed + '/' + mon.mi35x.total;
+        document.getElementById('monitor-stats').textContent = stats;
+        document.getElementById('monitor-link').href = mon.html_url || '#';
+    }
+
+    // In-progress table
+    var ipRuns = ip.runs || [];
+    if (ipRuns.length > 0) {
+        document.getElementById('in-progress-section').classList.remove('d-none');
+        document.getElementById('ip-count').textContent = ip.count;
+        var tbody = document.getElementById('ip-tbody');
+        tbody.innerHTML = '';
+        ipRuns.forEach(function(r) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><a href="' + r.html_url + '" target="_blank" class="run-link">#' + r.run_number + '</a></td>' +
+                '<td>' + (r.workflow || r.name) + '</td>' +
+                authorCell(r) +
+                prBranchCell(r) +
+                runnerCell(r) +
+                '<td class="text-truncate" style="max-width:280px">' + escapeHtml(r.display_title || '') + '</td>' +
+                '<td><a href="' + r.html_url + '" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></td>';
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Completed table
+    var cruns = rc.runs || [];
+    document.getElementById('completed-count').textContent = rc.total || 0;
+    var ctbody = document.getElementById('completed-tbody');
+    ctbody.innerHTML = '';
+    if (cruns.length === 0) {
+        ctbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-3">No recent completed AMD runs</td></tr>';
+    } else {
+        cruns.forEach(function(r) {
+            var badgeCls = r.conclusion === 'success' ? 'bg-success' : (r.conclusion === 'cancelled' ? 'bg-warning text-dark' : 'bg-danger');
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><a href="' + r.html_url + '" target="_blank" class="run-link">#' + r.run_number + '</a></td>' +
+                '<td>' + (r.workflow || r.name) + '</td>' +
+                '<td><span class="badge ' + badgeCls + '">' + (r.conclusion || '?') + '</span></td>' +
+                '<td class="text-muted small">' + formatTimestamp(r.created_at) + '</td>';
+            ctbody.appendChild(tr);
+        });
+    }
+
+    // Last passing runs (at bottom)
+    var passed = data.last_passed || [];
+    document.getElementById('passed-count').textContent = passed.length;
+    var ptbody = document.getElementById('passed-tbody');
+    ptbody.innerHTML = '';
+    if (passed.length === 0) {
+        ptbody.innerHTML = '<tr><td colspan="3" class="text-muted text-center py-3">No recent passing runs</td></tr>';
+    } else {
+        passed.forEach(function(r) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><a href="' + r.html_url + '" target="_blank" class="run-link">#' + r.run_number + '</a></td>' +
+                '<td>' + (r.workflow || r.name) + '</td>' +
+                '<td class="text-muted small">' + formatTimestamp(r.created_at) + '</td>';
+            ptbody.appendChild(tr);
+        });
+    }
+
+    // Queued table
+    var qruns = q.runs || [];
+    document.getElementById('queued-count').textContent = q.count || 0;
+    var qtbody = document.getElementById('queued-tbody');
+    qtbody.innerHTML = '';
+    if (qruns.length === 0) {
+        qtbody.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-3">No queued AMD runs</td></tr>';
+    } else {
+        qruns.forEach(function(r) {
+            var w = r.wait_minutes || 0;
+            var wBadge = w > 60 ? 'bg-danger' : (w > 30 ? 'bg-warning text-dark' : 'bg-secondary');
+            var wText = w > 1440 ? Math.floor(w / 1440) + 'd' : (w > 60 ? Math.floor(w / 60) + 'h' : w + 'm');
+            var runCell = r.html_url
+                ? '<a href="' + r.html_url + '" target="_blank" class="run-link">#' + r.run_number + '</a>'
+                : '#' + r.run_number;
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td>' + runCell + '</td>' +
+                '<td>' + (r.workflow || r.name) + '</td>' +
+                authorCell(r) +
+                prBranchCell(r) +
+                runnerCell(r) +
+                '<td class="text-truncate" style="max-width:240px">' + escapeHtml(r.display_title || '') + '</td>' +
+                '<td><span class="badge ' + wBadge + '">' + wText + '</span></td>' +
+                '<td><a href="' + r.html_url + '" target="_blank"><i class="bi bi-box-arrow-up-right"></i></a></td>';
+            qtbody.appendChild(tr);
+        });
+    }
+}
+
+function showUptime(btn, poolKey, hours) {
+    var group = btn.parentElement;
+    group.querySelectorAll('.uptime-window-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+
+    var pctEl = document.getElementById('uptime-pct-' + poolKey);
+    if (pctEl) {
+        pctEl.textContent = btn.getAttribute('data-pct');
+        pctEl.className = 'uptime-pct ' + btn.getAttribute('data-cls');
+    }
+
+    var detailEl = document.getElementById('uptime-detail-' + poolKey);
+    if (detailEl) {
+        detailEl.textContent = btn.getAttribute('data-detail') || '';
+    }
+
+    // Update daily dots visibility
+    var days = Math.ceil(hours / 24);
+    var dotsEl = document.getElementById('uptime-dots-' + poolKey);
+    if (dotsEl) {
+        var dots = dotsEl.querySelectorAll('.uptime-dot');
+        dots.forEach(function(dot, i) {
+            dot.style.display = (i >= dots.length - days) ? '' : 'none';
+        });
+    }
+
+    // Redraw hourly heatmap
+    var hourly = window['_hourly_' + poolKey] || [];
+    var row = document.getElementById('hourly-row-' + poolKey);
+    if (row && hourly.length > 0) {
+        row.innerHTML = '';
+        var slice = hourly.slice(0, hours);
+        slice.reverse().forEach(function(h) {
+            var hcCls = h.status === 'up' ? 'hc-up' : (h.status === 'down' ? 'hc-down' : 'hc-nodata');
+            var cell = document.createElement('div');
+            cell.className = 'hourly-cell ' + hcCls;
+            cell.title = h.hour + ':00 UTC: ' + pickupStatusLabel(h.status);
+            row.appendChild(cell);
+        });
+    }
+
+    // Update left label
+    var leftLabel = document.getElementById('hourly-left-' + poolKey);
+    if (leftLabel) {
+        leftLabel.textContent = hours <= 24 ? '24h ago' : (hours <= 168 ? '7d ago' : '14d ago');
+    }
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  // Hide refresh buttons that need a backend
+  document.querySelectorAll('[onclick*="refreshReport"],[onclick*="loadStatus"],[onclick*="refreshAllPRs"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Hide refresh buttons next to cache status on nightly/pr-test
+  document.querySelectorAll('[onclick*="loadData(true)"]').forEach(function(el){el.classList.add('static-hidden')});
+  // Replace visitor count with dash
+  var vc=document.getElementById('visitor-count');if(vc)vc.textContent='-';
+});
+</script>
+</body>
+</html>
