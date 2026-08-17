@@ -26,7 +26,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SOURCE_DASHBOARD_URL: https://michaelzhang-ai.github.io/sglang-ci/
+  # ROCm/sglang-ci is the upstream again now that it is unarchived. The fork it
+  # was pointed at while the upstream was archived has no Actions minutes left,
+  # so its Pages output is frozen and every poll here finds nothing to publish.
+  SOURCE_DASHBOARD_URL: https://rocm.github.io/sglang-ci/
 
 jobs:
   # Deciding whether there is anything to publish is separated from publishing
