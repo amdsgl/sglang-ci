@@ -26,8 +26,12 @@ on:
   # run but not change what it publishes.
   workflow_dispatch:
     inputs:
+      manifest_sha256:
+        description: SHA-256 of the site-manifest.json the source just deployed. Set by ROCm/sglang-ci; leave empty for a manual sync.
+        required: false
+        default: ''
       source_run:
-        description: Source deploy run that sent this. Set by ROCm/sglang-ci; leave empty for a manual sync.
+        description: Source deploy run that sent this, for the log. Set by ROCm/sglang-ci.
         required: false
         default: ''
 
@@ -54,14 +58,15 @@ jobs:
   # touches the github-pages environment.
   check:
     runs-on: ubuntu-latest
-    # Long enough for the dispatch poll below to run its full course.
-    timeout-minutes: 10
+    # Long enough for the dispatch wait below to run its full course.
+    timeout-minutes: 20
     outputs:
       changed: ${{ steps.compare.outputs.changed }}
     steps:
       - name: Compare source and mirror manifests
         id: compare
         env:
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
           SOURCE_RUN: ${{ inputs.source_run }}
         run: |
           set -euo pipefail
@@ -77,18 +82,21 @@ jobs:
           echo "Source: ${SOURCE_DASHBOARD_URL}"
           echo "Mirror: ${mirror_url}"
 
-          # The source dispatches the moment its deploy step returns, but Pages
-          # needs a little longer to serve the new manifest at the edge. A
-          # single fetch landing inside that window reads "already matches",
-          # and this mirror would then sit until the next scheduled tick --
-          # hours, at the cadence the cron really gets, which is the whole
-          # problem the dispatch exists to fix. So a dispatch from the source
-          # waits for the manifest it was promised; every other trigger, a
-          # manual one included, keeps the single fetch it has always done,
-          # because nothing told it to expect a change.
-          if [ -n "${SOURCE_RUN}" ]; then
-            echo "Dispatched by ${SOURCE_RUN}"
-            attempts=20
+          # The source dispatches the moment its deploy step returns, but that
+          # step reports success well before Pages serves the deploy: the
+          # source's 01:47 UTC refresh on 2026-10-09 went live 8.5 minutes
+          # later. Comparing on arrival sees the previous deploy. Waiting for
+          # any difference is no better, because whenever this mirror is a
+          # deploy behind, the previous deploy *is* a difference -- it takes
+          # that, and stays a deploy behind for good. So a dispatch names the
+          # manifest it deployed, and this waits up to 15 minutes for the
+          # source to serve that one (Pages purges its CDN when a deploy goes
+          # live, so the next attempt after that sees it). On the last attempt
+          # it settles for whatever the source serves. Every other trigger, a
+          # manual one included, keeps the single fetch it has always done.
+          if [ -n "${MANIFEST_SHA256}" ]; then
+            echo "Dispatched by ${SOURCE_RUN:-the source} for manifest ${MANIFEST_SHA256}"
+            attempts=60
           else
             attempts=1
           fi
@@ -101,9 +109,9 @@ jobs:
 
             bust="?poll=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
 
-            # Not fatal while polling: a source read that fails on attempt 3 of
-            # 20 is a blip, and failing the run over it would throw away the
-            # dispatch this is here to honour.
+            # Not fatal while waiting: a source read that fails once mid-wait is
+            # a blip, and failing the run over it would throw away the dispatch
+            # this is here to honour.
             if ! curl --fail --silent --show-error --location \
                  --retry 4 --retry-all-errors \
                  "${SOURCE_DASHBOARD_URL}site-manifest.json${bust}" \
@@ -116,6 +124,17 @@ jobs:
               continue
             fi
 
+            if [ -n "${MANIFEST_SHA256}" ]; then
+              served="$(sha256sum /tmp/source-manifest.json | cut -d' ' -f1)"
+              if [ "$served" != "${MANIFEST_SHA256}" ]; then
+                if [ "$attempt" -lt "$attempts" ]; then
+                  echo "Attempt ${attempt}/${attempts}: the source is not serving that manifest yet"
+                  continue
+                fi
+                echo "::warning::The source never served manifest ${MANIFEST_SHA256} in ${attempts} attempts; comparing what it serves instead"
+              fi
+            fi
+
             # A mirror that has never deployed, or one whose manifest predates
             # this scheme, answers 404. Treat anything unreadable as "changed"
             # so the sync below is what decides, not this comparison.
@@ -123,8 +142,8 @@ jobs:
                  "${mirror_url}site-manifest.json${bust}" \
                  --output /tmp/mirror-manifest.json; then
               if cmp --quiet /tmp/source-manifest.json /tmp/mirror-manifest.json; then
-                echo "Attempt ${attempt}/${attempts}: mirror still matches the source"
-                continue
+                echo "Attempt ${attempt}/${attempts}: mirror already matches the source"
+                break
               fi
               echo "Mirror manifest differs from the source"
             else
@@ -137,13 +156,7 @@ jobs:
 
           if [ "$changed" != "true" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            if [ "$attempts" -gt 1 ]; then
-              # Not an error. The usual cause is benign: a scheduled poll
-              # already published this manifest before the dispatch landed.
-              echo "::notice::No new manifest within ${attempts} attempts — already in sync, or the source deployed no change"
-            else
-              echo "::notice::Mirror already matches the source manifest — nothing to deploy"
-            fi
+            echo "::notice::Mirror already matches the source manifest — nothing to deploy"
             exit 0
           fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
