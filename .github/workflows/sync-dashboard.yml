@@ -12,7 +12,28 @@ on:
   # fetches one 44 KB manifest and stops.
   schedule:
     - cron: '*/15 * * * *'
+  # ROCm/sglang-ci dispatches this the moment it finishes deploying, which is
+  # what actually keeps this mirror current: a dispatch is not subject to the
+  # scheduler throttling that reduces the cron above to roughly five fires a
+  # day. The cron stays as the fallback for every way a dispatch can fail to
+  # arrive -- no token configured on the source, a failed source run, a
+  # dropped delivery -- so losing it costs latency, never correctness.
+  #
+  # A workflow_dispatch rather than a repository_dispatch because of what each
+  # asks of the source's token. A repository_dispatch needs Contents: write,
+  # which can push to main, and Pages here builds from main, so that token
+  # could publish anything. This needs only Actions: write, which can start a
+  # run but not change what it publishes.
   workflow_dispatch:
+    inputs:
+      manifest_sha256:
+        description: SHA-256 of the site-manifest.json the source just deployed. Set by ROCm/sglang-ci; leave empty for a manual sync.
+        required: false
+        default: ''
+      source_run:
+        description: Source deploy run that sent this, for the log. Set by ROCm/sglang-ci.
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -37,12 +58,16 @@ jobs:
   # touches the github-pages environment.
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Long enough for the dispatch wait below to run its full course.
+    timeout-minutes: 20
     outputs:
       changed: ${{ steps.compare.outputs.changed }}
     steps:
       - name: Compare source and mirror manifests
         id: compare
+        env:
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          SOURCE_RUN: ${{ inputs.source_run }}
         run: |
           set -euo pipefail
 
@@ -57,26 +82,82 @@ jobs:
           echo "Source: ${SOURCE_DASHBOARD_URL}"
           echo "Mirror: ${mirror_url}"
 
-          bust="?poll=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          curl --fail --silent --show-error --location \
-            --retry 4 --retry-all-errors \
-            "${SOURCE_DASHBOARD_URL}site-manifest.json${bust}" \
-            --output /tmp/source-manifest.json
-
-          # A mirror that has never deployed, or one whose manifest predates
-          # this scheme, answers 404. Treat anything unreadable as "changed"
-          # so the sync below is what decides, not this comparison.
-          if curl --fail --silent --show-error --location \
-               "${mirror_url}site-manifest.json${bust}" \
-               --output /tmp/mirror-manifest.json; then
-            if cmp --quiet /tmp/source-manifest.json /tmp/mirror-manifest.json; then
-              echo "changed=false" >> "$GITHUB_OUTPUT"
-              echo "::notice::Mirror already matches the source manifest — nothing to deploy"
-              exit 0
-            fi
-            echo "Mirror manifest differs from the source"
+          # The source dispatches the moment its deploy step returns, but that
+          # step reports success well before Pages serves the deploy: the
+          # source's 01:47 UTC refresh on 2026-10-09 went live 8.5 minutes
+          # later. Comparing on arrival sees the previous deploy. Waiting for
+          # any difference is no better, because whenever this mirror is a
+          # deploy behind, the previous deploy *is* a difference -- it takes
+          # that, and stays a deploy behind for good. So a dispatch names the
+          # manifest it deployed, and this waits up to 15 minutes for the
+          # source to serve that one (Pages purges its CDN when a deploy goes
+          # live, so the next attempt after that sees it). On the last attempt
+          # it settles for whatever the source serves. Every other trigger, a
+          # manual one included, keeps the single fetch it has always done.
+          if [ -n "${MANIFEST_SHA256}" ]; then
+            echo "Dispatched by ${SOURCE_RUN:-the source} for manifest ${MANIFEST_SHA256}"
+            attempts=60
           else
-            echo "Mirror manifest is not published yet"
+            attempts=1
+          fi
+
+          changed=false
+          for attempt in $(seq 1 "$attempts"); do
+            if [ "$attempt" -gt 1 ]; then
+              sleep 15
+            fi
+
+            bust="?poll=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}"
+
+            # Not fatal while waiting: a source read that fails once mid-wait is
+            # a blip, and failing the run over it would throw away the dispatch
+            # this is here to honour.
+            if ! curl --fail --silent --show-error --location \
+                 --retry 4 --retry-all-errors \
+                 "${SOURCE_DASHBOARD_URL}site-manifest.json${bust}" \
+                 --output /tmp/source-manifest.json; then
+              echo "Attempt ${attempt}/${attempts}: could not read the source manifest"
+              if [ "$attempt" = "$attempts" ]; then
+                echo "::error::Source manifest unreadable after ${attempts} attempts"
+                exit 1
+              fi
+              continue
+            fi
+
+            if [ -n "${MANIFEST_SHA256}" ]; then
+              served="$(sha256sum /tmp/source-manifest.json | cut -d' ' -f1)"
+              if [ "$served" != "${MANIFEST_SHA256}" ]; then
+                if [ "$attempt" -lt "$attempts" ]; then
+                  echo "Attempt ${attempt}/${attempts}: the source is not serving that manifest yet"
+                  continue
+                fi
+                echo "::warning::The source never served manifest ${MANIFEST_SHA256} in ${attempts} attempts; comparing what it serves instead"
+              fi
+            fi
+
+            # A mirror that has never deployed, or one whose manifest predates
+            # this scheme, answers 404. Treat anything unreadable as "changed"
+            # so the sync below is what decides, not this comparison.
+            if curl --fail --silent --show-error --location \
+                 "${mirror_url}site-manifest.json${bust}" \
+                 --output /tmp/mirror-manifest.json; then
+              if cmp --quiet /tmp/source-manifest.json /tmp/mirror-manifest.json; then
+                echo "Attempt ${attempt}/${attempts}: mirror already matches the source"
+                break
+              fi
+              echo "Mirror manifest differs from the source"
+            else
+              echo "Mirror manifest is not published yet"
+            fi
+
+            changed=true
+            break
+          done
+
+          if [ "$changed" != "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Mirror already matches the source manifest — nothing to deploy"
+            exit 0
           fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
