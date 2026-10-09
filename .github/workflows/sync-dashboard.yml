@@ -164,3 +164,62 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # The */15 schedule above is not what this repo actually gets. Over the ten
+  # days to 2026-10-09 it fired about five times a day instead of ninety-six,
+  # at arbitrary minutes, leaving gaps of three to seven hours -- which is the
+  # mirror's real staleness, not the poll interval. GitHub deprioritises
+  # scheduled workflows in a public repository with no recent activity, and
+  # disables them outright after sixty days of it; the last commit here was
+  # 2026-08-17, so that cliff is days away.
+  #
+  # A commit is activity, whoever makes it, so one per poll resets the clock.
+  # Scheduled runs themselves do not count.
+  #
+  # Three things this deliberately does not do:
+  #   - commit to main, which is a trigger of this same workflow (a push by
+  #     GITHUB_TOKEN does not start a run today, but a loop that is one
+  #     settings change away from existing is not worth the saved branch);
+  #   - keep history, since nothing reads it: the branch is rewritten to a
+  #     single parentless commit each time and never grows;
+  #   - fail the sync, hence continue-on-error -- a mirror that publishes is
+  #     worth more than one that recorded a heartbeat.
+  heartbeat:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - name: Record repository activity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: heartbeat
+        run: |
+          set -euo pipefail
+
+          stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          tree_sha="$(gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha' <<JSON
+          {"tree":[{"path":"HEARTBEAT","mode":"100644","type":"blob",
+                    "content":"${stamp}\nKeeps this repository's scheduled workflows alive. Not read by anything.\n"}]}
+          JSON
+          )"
+
+          commit_sha="$(gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/git/commits" --jq '.sha' \
+            -f message="heartbeat ${stamp}" \
+            -f tree="${tree_sha}")"
+
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${BRANCH}" >/dev/null 2>&1; then
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}" \
+              -f sha="${commit_sha}" -F force=true >/dev/null
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/heads/${BRANCH}" -f sha="${commit_sha}" >/dev/null
+          fi
+
+          echo "::notice::Heartbeat ${stamp} recorded on ${BRANCH} (${commit_sha})"
