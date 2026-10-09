@@ -12,15 +12,24 @@ on:
   # fetches one 44 KB manifest and stops.
   schedule:
     - cron: '*/15 * * * *'
-  # ROCm/sglang-ci sends this the moment it finishes deploying, which is what
-  # actually keeps this mirror current: a dispatch is not subject to the
+  # ROCm/sglang-ci dispatches this the moment it finishes deploying, which is
+  # what actually keeps this mirror current: a dispatch is not subject to the
   # scheduler throttling that reduces the cron above to roughly five fires a
   # day. The cron stays as the fallback for every way a dispatch can fail to
   # arrive -- no token configured on the source, a failed source run, a
   # dropped delivery -- so losing it costs latency, never correctness.
-  repository_dispatch:
-    types: [source-deployed]
+  #
+  # A workflow_dispatch rather than a repository_dispatch because of what each
+  # asks of the source's token. A repository_dispatch needs Contents: write,
+  # which can push to main, and Pages here builds from main, so that token
+  # could publish anything. This needs only Actions: write, which can start a
+  # run but not change what it publishes.
   workflow_dispatch:
+    inputs:
+      source_run:
+        description: Source deploy run that sent this. Set by ROCm/sglang-ci; leave empty for a manual sync.
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -52,6 +61,8 @@ jobs:
     steps:
       - name: Compare source and mirror manifests
         id: compare
+        env:
+          SOURCE_RUN: ${{ inputs.source_run }}
         run: |
           set -euo pipefail
 
@@ -71,11 +82,12 @@ jobs:
           # single fetch landing inside that window reads "already matches",
           # and this mirror would then sit until the next scheduled tick --
           # hours, at the cadence the cron really gets, which is the whole
-          # problem the dispatch exists to fix. So a dispatch waits for the
-          # manifest it was promised; every other trigger keeps the single
-          # fetch it has always done, because nothing told it to expect a
-          # change.
-          if [ "${GITHUB_EVENT_NAME}" = "repository_dispatch" ]; then
+          # problem the dispatch exists to fix. So a dispatch from the source
+          # waits for the manifest it was promised; every other trigger, a
+          # manual one included, keeps the single fetch it has always done,
+          # because nothing told it to expect a change.
+          if [ -n "${SOURCE_RUN}" ]; then
+            echo "Dispatched by ${SOURCE_RUN}"
             attempts=20
           else
             attempts=1
